@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git branch *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(git checkout *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx *)",
+      "Bash(gh *)",
+      "Bash(rm *)",
+      "Bash(node *)",
+      "Edit(./.claude/**)",
+      "Edit(./.github/**)",
+      "Edit(./package.json)",
+      "Edit(./CLAUDE.md)",
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(gh auth *)",
+      "Bash(gh secret *)",
+      "Bash(gh repo delete *)",
+      "Bash(npm publish *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ]
+  }
+}

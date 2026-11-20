@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secretos: el proyecto no los necesita, pero por si acaso
+.env
+.env.*
+
+# Configuración personal de Claude Code (la compartida va en .claude/settings.json)
+.claude/settings.local.json
+
+# Zips de packs de arte descargados (se sube solo lo extraído y con licencia registrada)
+*.zip
+
+# Copia en PDF del plan (el original vive en docs/plan.md)
+*.pdf
