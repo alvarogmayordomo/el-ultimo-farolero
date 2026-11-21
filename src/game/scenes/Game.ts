@@ -1,14 +1,14 @@
 import { BlendModes, Geom, Input, Scene, Tilemaps } from 'phaser';
 import { ALCANCE_ENCENDER, RADIO_LUZ_BRASERO } from '../../core/brasero';
-import { Golpe } from '../../core/combo';
+import type { Golpe } from '../../core/combo';
 import { MULTIPLICADOR_LANZA } from '../../core/lanza';
 import { LUZ_POR_GOLPE, RADIO_MAX } from '../../core/luz';
 import { Brasero } from '../objetos/Brasero';
+import { VECTORES } from '../objetos/direcciones';
 import { Farolero } from '../objetos/Farolero';
 import { Lanza } from '../objetos/Lanza';
 import { Sombra } from '../objetos/Sombra';
-import { VECTORES } from '../objetos/direcciones';
-import { Hud } from './Hud';
+import type { Hud } from './Hud';
 
 //  La textura «luz» se crea con el radio máximo y se escala según el radio que toque
 const RADIO_TEXTURA_LUZ = RADIO_MAX;
@@ -21,8 +21,7 @@ const MARGEN_OSCURIDAD = 32;
 //  Ángulo del efecto de tajo (el sprite apunta a la derecha)
 const ANGULO_TAJO = { derecha: 0, abajo: 90, izquierda: 180, arriba: -90 };
 
-interface Teclas
-{
+interface Teclas {
     flechas: Phaser.Types.Input.Keyboard.CursorKeys;
     arriba: Input.Keyboard.Key;
     abajo: Input.Keyboard.Key;
@@ -34,8 +33,7 @@ interface Teclas
     encender: Input.Keyboard.Key[];
 }
 
-export class Game extends Scene
-{
+export class Game extends Scene {
     mapa: Phaser.Tilemaps.Tilemap;
     muros: Phaser.Tilemaps.TilemapLayer;
     jugador: Farolero;
@@ -49,13 +47,11 @@ export class Game extends Scene
     private golpeEnCurso: Golpe | null = null;
     private alcanzadas = new Set<Sombra>();
 
-    constructor ()
-    {
+    constructor() {
         super('Game');
     }
 
-    create ()
-    {
+    create() {
         this.golpeEnCurso = null;
         this.alcanzadas.clear();
 
@@ -71,23 +67,19 @@ export class Game extends Scene
         this.events.once('shutdown', () => this.scene.stop('Hud'));
     }
 
-    update (ahora: number, delta: number)
-    {
+    update(ahora: number, delta: number) {
         const entrada = this.leerEntrada();
         const golpe = this.jugador.actualizar(ahora, entrada);
 
-        if (golpe)
-        {
+        if (golpe) {
             this.empezarGolpe(golpe);
         }
 
-        if (entrada.lanzar && this.jugador.lanzar(ahora))
-        {
+        if (entrada.lanzar && this.jugador.lanzar(ahora)) {
             this.crearLanza();
         }
 
-        if (entrada.encender)
-        {
+        if (entrada.encender) {
             this.encenderBraseroCercano();
         }
 
@@ -97,27 +89,26 @@ export class Game extends Scene
 
         const objetivo = this.jugador.body.center;
         this.sombras = this.sombras.filter((sombra) => sombra.active);
-        this.sombras.forEach((sombra) => sombra.actualizar(ahora, objetivo.x, objetivo.y));
+        for (const sombra of this.sombras) {
+            sombra.actualizar(ahora, objetivo.x, objetivo.y);
+        }
 
         this.comprobarAtaquesDeSombras(ahora);
         this.actualizarOscuridad();
         this.actualizarHud();
 
-        if (!this.jugador.luchador.vivo)
-        {
+        if (!this.jugador.luchador.vivo) {
             this.scene.start('GameOver');
         }
     }
 
-    private crearMapa ()
-    {
+    private crearMapa() {
         //  Mapa de Tiled: el nombre de cada tileset debe coincidir con el del .tmj
         this.mapa = this.make.tilemap({ key: 'mapa-prueba' });
         const suelo = this.mapa.addTilesetImage('suelo-interior', 'tiles-suelo');
         const muros = this.mapa.addTilesetImage('muros-simples', 'tiles-muros');
 
-        if (!suelo || !muros)
-        {
+        if (!suelo || !muros) {
             throw new Error('No se han podido cargar los tilesets del mapa');
         }
 
@@ -126,8 +117,7 @@ export class Game extends Scene
 
         //  En Phaser 4, createLayer puede devolver una capa GPU (sin colisiones por baldosa).
         //  Sin el parámetro `gpu` devuelve una TilemapLayer normal; lo comprobamos para TypeScript.
-        if (!(capaMuros instanceof Tilemaps.TilemapLayer))
-        {
+        if (!(capaMuros instanceof Tilemaps.TilemapLayer)) {
             throw new Error('El mapa no tiene la capa «muros»');
         }
 
@@ -137,26 +127,26 @@ export class Game extends Scene
         this.muros.setCollisionByExclusion([-1]);
     }
 
-    private crearPersonajes ()
-    {
+    private crearPersonajes() {
         //  Los puntos «inicio» y «sombra» se colocan en Tiled, en la capa de objetos «objetos»
         const inicio = this.mapa.findObject('objetos', (objeto) => objeto.name === 'inicio');
         this.jugador = new Farolero(this, inicio?.x ?? 0, inicio?.y ?? 0);
 
-        this.sombras = this.mapa
-            .filterObjects('objetos', (objeto) => objeto.name === 'sombra')
-            ?.map((punto) => new Sombra(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
+        this.sombras =
+            this.mapa
+                .filterObjects('objetos', (objeto) => objeto.name === 'sombra')
+                ?.map((punto) => new Sombra(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
 
         //  Los braseros también son puntos «brasero» de la capa «objetos»
-        this.braseros = this.mapa
-            .filterObjects('objetos', (objeto) => objeto.name === 'brasero')
-            ?.map((punto) => new Brasero(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
+        this.braseros =
+            this.mapa
+                .filterObjects('objetos', (objeto) => objeto.name === 'brasero')
+                ?.map((punto) => new Brasero(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
 
         this.lanzas = this.add.group();
     }
 
-    private crearColisiones ()
-    {
+    private crearColisiones() {
         this.physics.add.collider(this.jugador, this.muros);
         //  En un grupo, las Sombras que mueren salen solas y el collider no las toca
         const grupoSombras = this.add.group(this.sombras);
@@ -169,11 +159,12 @@ export class Game extends Scene
         //  La Lanza se apaga al chocar con un muro o un brasero, y daña a la primera Sombra que toca
         this.physics.add.collider(this.lanzas, this.muros, (lanza) => (lanza as Lanza).apagar());
         this.physics.add.collider(this.lanzas, this.braseros, (lanza) => (lanza as Lanza).apagar());
-        this.physics.add.overlap(this.lanzas, grupoSombras, (lanza, sombra) => this.lanzaAlcanza(lanza as Lanza, sombra as Sombra));
+        this.physics.add.overlap(this.lanzas, grupoSombras, (lanza, sombra) =>
+            this.lanzaAlcanza(lanza as Lanza, sombra as Sombra)
+        );
     }
 
-    private crearCamara ()
-    {
+    private crearCamara() {
         const ancho = this.mapa.widthInPixels;
         const alto = this.mapa.heightInPixels;
 
@@ -188,12 +179,10 @@ export class Game extends Scene
         this.jugador.setCollideWorldBounds(true);
     }
 
-    private crearControles ()
-    {
+    private crearControles() {
         const teclado = this.input.keyboard;
 
-        if (!teclado)
-        {
+        if (!teclado) {
             throw new Error('No hay teclado disponible');
         }
 
@@ -215,8 +204,7 @@ export class Game extends Scene
     }
 
     //  Traduce el teclado a la entrada que entiende el farolero
-    private leerEntrada ()
-    {
+    private leerEntrada() {
         const t = this.teclas;
         const izquierda = t.flechas.left.isDown || t.izquierda.isDown;
         const derecha = t.flechas.right.isDown || t.derecha.isDown;
@@ -234,8 +222,7 @@ export class Game extends Scene
         };
     }
 
-    private empezarGolpe (golpe: Golpe)
-    {
+    private empezarGolpe(golpe: Golpe) {
         this.golpeEnCurso = golpe;
         this.alcanzadas.clear();
 
@@ -251,12 +238,10 @@ export class Game extends Scene
     }
 
     //  Mientras dura el golpe, cada Sombra dentro de la zona recibe daño una sola vez
-    private comprobarGolpeDelJugador (ahora: number)
-    {
+    private comprobarGolpeDelJugador(ahora: number) {
         const golpe = this.golpeEnCurso;
 
-        if (!golpe || !this.jugador.combo.golpeActivo(ahora))
-        {
+        if (!golpe || !this.jugador.combo.golpeActivo(ahora)) {
             this.golpeEnCurso = null;
             return;
         }
@@ -264,44 +249,39 @@ export class Game extends Scene
         const zona = this.jugador.zonaDeGolpe();
         const centro = this.jugador.body.center;
 
-        for (const sombra of this.sombras)
-        {
-            if (!sombra.active || this.alcanzadas.has(sombra))
-            {
+        for (const sombra of this.sombras) {
+            if (!sombra.active || this.alcanzadas.has(sombra)) {
                 continue;
             }
 
-            if (Geom.Intersects.RectangleToRectangle(zona, sombra.getBounds()))
-            {
+            if (Geom.Intersects.RectangleToRectangle(zona, sombra.getBounds())) {
                 this.alcanzadas.add(sombra);
 
                 //  Cada golpe que hace daño devuelve un poco de Luz
-                if (sombra.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora, centro.x, centro.y) > 0)
-                {
+                if (sombra.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora, centro.x, centro.y) > 0) {
                     this.jugador.luz.ganar(LUZ_POR_GOLPE);
                 }
             }
         }
     }
 
-    private crearLanza ()
-    {
+    private crearLanza() {
         const mirando = this.jugador.mirando;
         const v = VECTORES[mirando];
         const centro = this.jugador.body.center;
         this.lanzas.add(new Lanza(this, centro.x + v.x * 10, centro.y + v.y * 10 - 4, mirando));
     }
 
-    private actualizarLanzas ()
-    {
-        this.lanzas.getChildren().forEach((lanza) => (lanza as Lanza).actualizar());
+    private actualizarLanzas() {
+        //  Se recorre una copia: una Lanza que se apaga sale del grupo a mitad del recorrido
+        for (const lanza of [...this.lanzas.getChildren()]) {
+            (lanza as Lanza).actualizar();
+        }
     }
 
     //  La Lanza daña con la fórmula de siempre y se apaga (no atraviesa)
-    private lanzaAlcanza (lanza: Lanza, sombra: Sombra)
-    {
-        if (!lanza.active || !sombra.active)
-        {
+    private lanzaAlcanza(lanza: Lanza, sombra: Sombra) {
+        if (!lanza.active || !sombra.active) {
             return;
         }
 
@@ -310,17 +290,14 @@ export class Game extends Scene
     }
 
     //  El brasero apagado más cercano, si está al alcance para encenderlo
-    private braseroApagadoCercano (): Brasero | null
-    {
+    private braseroApagadoCercano(): Brasero | null {
         const { x, y } = this.jugador.body.center;
         let mejor: Brasero | null = null;
 
-        for (const brasero of this.braseros)
-        {
+        for (const brasero of this.braseros) {
             const distancia = brasero.distanciaA(x, y);
 
-            if (!brasero.encendido && distancia <= ALCANCE_ENCENDER && (!mejor || distancia < mejor.distanciaA(x, y)))
-            {
+            if (!brasero.encendido && distancia <= ALCANCE_ENCENDER && (!mejor || distancia < mejor.distanciaA(x, y))) {
                 mejor = brasero;
             }
         }
@@ -328,45 +305,37 @@ export class Game extends Scene
         return mejor;
     }
 
-    private encenderBraseroCercano ()
-    {
+    private encenderBraseroCercano() {
         const { x, y } = this.jugador.body.center;
         this.braseroApagadoCercano()?.encender(x, y, this.jugador.luz);
     }
 
     //  La Luz se gasta con el tiempo o se recarga junto a un brasero encendido.
     //  Sin Luz, el frío quita PV.
-    private actualizarLuz (delta: number)
-    {
+    private actualizarLuz(delta: number) {
         const { x, y } = this.jugador.body.center;
         const junto = this.braseros.some((brasero) => brasero.reglas.recargaA(brasero.distanciaA(x, y)));
         const frio = this.jugador.luz.actualizar(delta, junto);
 
-        if (frio > 0)
-        {
+        if (frio > 0) {
             this.jugador.luchador.perderPv(frio);
         }
     }
 
-    private actualizarHud ()
-    {
+    private actualizarHud() {
         const hud = this.scene.get('Hud') as Hud;
 
         //  La escena del HUD arranca un fotograma después que esta
-        if (!hud.sys.isActive())
-        {
+        if (!hud.sys.isActive()) {
             return;
         }
 
         const { luchador, luz } = this.jugador;
         let aviso: string | null = null;
 
-        if (this.braseroApagadoCercano())
-        {
+        if (this.braseroApagadoCercano()) {
             aviso = 'E: encender el brasero';
-        }
-        else if (luz.valor === 0)
-        {
+        } else if (luz.valor === 0) {
             aviso = 'Sin Luz, el frío te hiere. Busca un brasero';
         }
 
@@ -374,39 +343,31 @@ export class Game extends Scene
     }
 
     //  Una Sombra que embiste y toca al farolero le hace daño (salvo si está esquivando)
-    private comprobarAtaquesDeSombras (ahora: number)
-    {
+    private comprobarAtaquesDeSombras(ahora: number) {
         const cuerpoJugador = this.cuerpoComoRectangulo(this.jugador.body);
 
-        for (const sombra of this.sombras)
-        {
-            if (!sombra.ia.haceDano || !this.jugador.esVulnerable(ahora))
-            {
+        for (const sombra of this.sombras) {
+            if (!sombra.ia.haceDano || !this.jugador.esVulnerable(ahora)) {
                 continue;
             }
 
-            if (Geom.Intersects.RectangleToRectangle(cuerpoJugador, this.cuerpoComoRectangulo(sombra.body)))
-            {
+            if (Geom.Intersects.RectangleToRectangle(cuerpoJugador, this.cuerpoComoRectangulo(sombra.body))) {
                 this.jugador.recibirGolpe(sombra.luchador, ahora, sombra.body.center.x, sombra.body.center.y);
             }
         }
     }
 
-    private cuerpoComoRectangulo (cuerpo: Phaser.Physics.Arcade.Body): Geom.Rectangle
-    {
+    private cuerpoComoRectangulo(cuerpo: Phaser.Physics.Arcade.Body): Geom.Rectangle {
         return new Geom.Rectangle(cuerpo.x, cuerpo.y, cuerpo.width, cuerpo.height);
     }
 
-    private crearOscuridad ()
-    {
+    private crearOscuridad() {
         //  Textura «luz»: un círculo blanco que se desvanece hacia el borde. Al borrar
         //  con ella, la oscuridad desaparece del todo en el centro y poco a poco hacia fuera.
-        if (!this.textures.exists('luz'))
-        {
+        if (!this.textures.exists('luz')) {
             const lienzo = this.textures.createCanvas('luz', RADIO_TEXTURA_LUZ * 2, RADIO_TEXTURA_LUZ * 2);
 
-            if (!lienzo)
-            {
+            if (!lienzo) {
                 throw new Error('No se ha podido crear la textura de luz');
             }
 
@@ -424,7 +385,8 @@ export class Game extends Scene
         //  Capa negra del tamaño de la vista (320×180) más un margen, por encima de todo
         const camara = this.cameras.main;
         this.oscuridad = this.add.renderTexture(
-            0, 0,
+            0,
+            0,
             camara.width / camara.zoom + MARGEN_OSCURIDAD * 2,
             camara.height / camara.zoom + MARGEN_OSCURIDAD * 2
         );
@@ -432,8 +394,7 @@ export class Game extends Scene
         this.oscuridad.setDepth(1000);
     }
 
-    private actualizarOscuridad ()
-    {
+    private actualizarOscuridad() {
         //  Cada fotograma: se coloca la capa sobre la vista, se pinta de negro
         //  y se borra un círculo de luz en el farolero (según su Luz) y en cada brasero encendido
         const vista = this.cameras.main.worldView;
@@ -444,10 +405,8 @@ export class Game extends Scene
         this.oscuridad.fill(0x000000, 1);
         this.borrarLuz(this.jugador.x - x, this.jugador.y - y, this.jugador.luz.radio);
 
-        for (const brasero of this.braseros)
-        {
-            if (brasero.encendido)
-            {
+        for (const brasero of this.braseros) {
+            if (brasero.encendido) {
                 //  Un leve parpadeo para que parezca fuego
                 const parpadeo = Math.sin(this.time.now / 90 + brasero.x) * 3;
                 this.borrarLuz(brasero.x - x, brasero.y - y, RADIO_LUZ_BRASERO + parpadeo);
@@ -459,23 +418,20 @@ export class Game extends Scene
 
     //  Abre un círculo de luz de `radio` px en (x, y), coordenadas de la capa.
     //  stamp coloca la textura por su centro; con el modo ERASE borra en vez de pintar.
-    private borrarLuz (x: number, y: number, radio: number)
-    {
+    private borrarLuz(x: number, y: number, radio: number) {
         this.oscuridad.stamp('luz', undefined, x, y, {
             scale: radio / RADIO_TEXTURA_LUZ,
             blendMode: BlendModes.ERASE
         });
     }
 
-    private alternarDebugFisicas ()
-    {
+    private alternarDebugFisicas() {
         const mundo = this.physics.world;
 
         //  Con debug: false en la configuración, la capa de depuración aún no existe
-        const mostrar = !(mundo.debugGraphic && mundo.debugGraphic.visible && mundo.drawDebug);
+        const mostrar = !(mundo.debugGraphic?.visible && mundo.drawDebug);
 
-        if (!mundo.debugGraphic)
-        {
+        if (!mundo.debugGraphic) {
             mundo.createDebugGraphic();
         }
 

@@ -1,6 +1,6 @@
-import { Physics, Scene } from 'phaser';
+import { Physics, type Scene } from 'phaser';
 import { ALCANCE_LANZA, VELOCIDAD_LANZA } from '../../core/lanza';
-import { Direccion, VECTORES } from './direcciones';
+import { type Direccion, VECTORES } from './direcciones';
 
 //  Color dorado de la Lanza (el sprite del pack es una bola de energía celeste)
 const COLOR_LANZA = 0xffd27a;
@@ -10,14 +10,12 @@ const ANGULO: Record<Direccion, number> = { arriba: 0, derecha: 90, abajo: 180, 
 
 //  Proyectil de la Lanza de Luz. Vuela en línea recta hasta su alcance,
 //  un muro o el primer enemigo. El coste y el enfriamiento están en src/core/lanza.
-export class Lanza extends Physics.Arcade.Sprite
-{
+export class Lanza extends Physics.Arcade.Sprite {
     declare body: Physics.Arcade.Body;
 
     private readonly origen: { x: number; y: number };
 
-    constructor (scene: Scene, x: number, y: number, direccion: Direccion)
-    {
+    constructor(scene: Scene, x: number, y: number, direccion: Direccion) {
         super(scene, x, y, 'fx-lanza', 0);
         scene.add.existing(this);
         scene.physics.add.existing(this);
@@ -33,19 +31,15 @@ export class Lanza extends Physics.Arcade.Sprite
     }
 
     //  Se llama cada fotograma: desaparece al llegar a su alcance
-    actualizar ()
-    {
-        if (Math.hypot(this.x - this.origen.x, this.y - this.origen.y) >= ALCANCE_LANZA)
-        {
+    actualizar() {
+        if (Math.hypot(this.x - this.origen.x, this.y - this.origen.y) >= ALCANCE_LANZA) {
             this.apagar();
         }
     }
 
     //  Se deshace en un destello pequeño
-    apagar ()
-    {
-        if (!this.active)
-        {
+    apagar() {
+        if (!this.active) {
             return;
         }
 

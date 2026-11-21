@@ -18,41 +18,34 @@ export const RECARGA_POR_SEGUNDO = 25;
 export const FRIO_PV_POR_SEGUNDO = 3;
 
 //  Radio de visión (px) para un valor de Luz: lineal entre RADIO_MIN y RADIO_MAX
-export function radioDeLuz (luz: number): number
-{
+export function radioDeLuz(luz: number): number {
     const proporcion = Math.min(Math.max(luz, 0), LUZ_MAX) / LUZ_MAX;
 
     return RADIO_MIN + (RADIO_MAX - RADIO_MIN) * proporcion;
 }
 
-export class Luz
-{
+export class Luz {
     private _valor: number;
 
     //  PV de frío que aún no suman un punto entero (el frío quita 3 PV/s,
     //  pero cada fotograma solo pasan unos pocos ms)
     private frioPendiente = 0;
 
-    constructor (inicial = LUZ_MAX)
-    {
+    constructor(inicial = LUZ_MAX) {
         this._valor = Math.min(Math.max(inicial, 0), LUZ_MAX);
     }
 
-    get valor (): number
-    {
+    get valor(): number {
         return this._valor;
     }
 
-    get radio (): number
-    {
+    get radio(): number {
         return radioDeLuz(this._valor);
     }
 
     //  Gasta `cantidad` si hay suficiente. Devuelve true si se ha gastado.
-    gastar (cantidad: number): boolean
-    {
-        if (this._valor < cantidad)
-        {
+    gastar(cantidad: number): boolean {
+        if (this._valor < cantidad) {
             return false;
         }
 
@@ -61,24 +54,20 @@ export class Luz
         return true;
     }
 
-    ganar (cantidad: number)
-    {
+    ganar(cantidad: number) {
         this._valor = Math.min(LUZ_MAX, this._valor + cantidad);
     }
 
-    llenar ()
-    {
+    llenar() {
         this._valor = LUZ_MAX;
     }
 
     //  Avanza `ms` milisegundos. Junto a un brasero encendido se recarga; si no,
     //  se desgasta. Devuelve los PV enteros que quita el frío en este paso.
-    actualizar (ms: number, juntoABrasero: boolean): number
-    {
+    actualizar(ms: number, juntoABrasero: boolean): number {
         const segundos = ms / 1000;
 
-        if (juntoABrasero)
-        {
+        if (juntoABrasero) {
             this.ganar(RECARGA_POR_SEGUNDO * segundos);
             this.frioPendiente = 0;
             return 0;
@@ -86,8 +75,7 @@ export class Luz
 
         this._valor = Math.max(0, this._valor - DESGASTE_POR_SEGUNDO * segundos);
 
-        if (this._valor > 0)
-        {
+        if (this._valor > 0) {
             this.frioPendiente = 0;
             return 0;
         }

@@ -2,10 +2,7 @@
   "fuentes": {
     "ninja-adventure": {
       "nombre": "Ninja Adventure Asset Pack",
-      "autores": [
-        "Pixel-boy",
-        "AAA"
-      ],
+      "autores": ["Pixel-boy", "AAA"],
       "url": "https://pixel-boy.itch.io/ninja-adventure-asset-pack",
       "licencia": "CC0-1.0",
       "prueba": "docs/licencias/ninja-adventure-CC0.txt"

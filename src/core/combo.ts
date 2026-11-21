@@ -14,8 +14,7 @@ export const DESCANSO = 400;
 //  Multiplicador de daño de cada golpe del combo (el tercero remata)
 export const MULTIPLICADORES = [1, 1.2, 1.6] as const;
 
-export interface Golpe
-{
+export interface Golpe {
     //  Número de golpe dentro del combo: 1, 2 o 3
     numero: number;
     multiplicador: number;
@@ -23,46 +22,39 @@ export interface Golpe
     fin: number;
 }
 
-export class Combo
-{
+export class Combo {
     private golpe: Golpe | null = null;
     private apuntado = false;
     private bloqueadoHasta = 0;
 
     //  Se llama al pulsar atacar. Devuelve el golpe que empieza ahora, o null si
     //  el ataque queda apuntado para después o no se puede atacar todavía.
-    atacar (ahora: number): Golpe | null
-    {
-        if (ahora < this.bloqueadoHasta)
-        {
+    atacar(ahora: number): Golpe | null {
+        if (ahora < this.bloqueadoHasta) {
             return null;
         }
 
-        if (this.golpe && ahora < this.golpe.fin)
-        {
+        if (this.golpe && ahora < this.golpe.fin) {
             //  A mitad de golpe: se apunta el siguiente (salvo tras el tercero)
             this.apuntado = this.golpe.numero < MULTIPLICADORES.length;
             return null;
         }
 
-        const encadena = this.golpe !== null
-            && this.golpe.numero < MULTIPLICADORES.length
-            && ahora <= this.golpe.fin + VENTANA_ENCADENAR;
+        const anterior = this.golpe;
+        const encadena =
+            anterior !== null && anterior.numero < MULTIPLICADORES.length && ahora <= anterior.fin + VENTANA_ENCADENAR;
 
-        return this.empezar(encadena ? this.golpe!.numero + 1 : 1, ahora);
+        return this.empezar(encadena ? anterior.numero + 1 : 1, ahora);
     }
 
     //  Se llama cada fotograma. Si había un golpe apuntado y el actual ya ha
     //  terminado, empieza el siguiente y lo devuelve.
-    actualizar (ahora: number): Golpe | null
-    {
-        if (!this.golpe || ahora < this.golpe.fin)
-        {
+    actualizar(ahora: number): Golpe | null {
+        if (!this.golpe || ahora < this.golpe.fin) {
             return null;
         }
 
-        if (this.apuntado)
-        {
+        if (this.apuntado) {
             this.apuntado = false;
             return this.empezar(this.golpe.numero + 1, this.golpe.fin);
         }
@@ -71,20 +63,17 @@ export class Combo
     }
 
     //  ¿Hay un golpe en curso en este instante?
-    golpeActivo (ahora: number): Golpe | null
-    {
+    golpeActivo(ahora: number): Golpe | null {
         return this.golpe && ahora < this.golpe.fin ? this.golpe : null;
     }
 
     //  Corta el combo (por ejemplo, al esquivar o al recibir un golpe)
-    cancelar ()
-    {
+    cancelar() {
         this.golpe = null;
         this.apuntado = false;
     }
 
-    private empezar (numero: number, inicio: number): Golpe
-    {
+    private empezar(numero: number, inicio: number): Golpe {
         this.golpe = {
             numero,
             multiplicador: MULTIPLICADORES[numero - 1],
@@ -92,8 +81,7 @@ export class Combo
             fin: inicio + DURACION_GOLPE
         };
 
-        if (numero === MULTIPLICADORES.length)
-        {
+        if (numero === MULTIPLICADORES.length) {
             this.bloqueadoHasta = this.golpe.fin + DESCANSO;
         }
 

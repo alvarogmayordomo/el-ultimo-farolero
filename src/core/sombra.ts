@@ -21,65 +21,54 @@ export const TIEMPO_ATACAR = 220;
 export const TIEMPO_RECUPERAR = 600;
 export const TIEMPO_HERIDA = 250;
 
-export class ComportamientoSombra
-{
+export class ComportamientoSombra {
     private _estado: EstadoSombra = 'quieta';
     private desde = 0;
 
-    get estado (): EstadoSombra
-    {
+    get estado(): EstadoSombra {
         return this._estado;
     }
 
     //  Devuelve true si el estado ha cambiado en esta llamada
-    actualizar (ahora: number, distanciaAlJugador: number): boolean
-    {
+    actualizar(ahora: number, distanciaAlJugador: number): boolean {
         const transcurrido = ahora - this.desde;
 
-        switch (this._estado)
-        {
+        switch (this._estado) {
             case 'quieta':
-                if (distanciaAlJugador <= DISTANCIA_DETECCION)
-                {
+                if (distanciaAlJugador <= DISTANCIA_DETECCION) {
                     return this.pasarA('perseguir', ahora);
                 }
                 break;
 
             case 'perseguir':
-                if (distanciaAlJugador > DISTANCIA_OLVIDO)
-                {
+                if (distanciaAlJugador > DISTANCIA_OLVIDO) {
                     return this.pasarA('quieta', ahora);
                 }
-                if (distanciaAlJugador <= DISTANCIA_ALCANCE)
-                {
+                if (distanciaAlJugador <= DISTANCIA_ALCANCE) {
                     return this.pasarA('preparar', ahora);
                 }
                 break;
 
             case 'preparar':
-                if (transcurrido >= TIEMPO_PREPARAR)
-                {
+                if (transcurrido >= TIEMPO_PREPARAR) {
                     return this.pasarA('atacar', ahora);
                 }
                 break;
 
             case 'atacar':
-                if (transcurrido >= TIEMPO_ATACAR)
-                {
+                if (transcurrido >= TIEMPO_ATACAR) {
                     return this.pasarA('recuperar', ahora);
                 }
                 break;
 
             case 'recuperar':
-                if (transcurrido >= TIEMPO_RECUPERAR)
-                {
+                if (transcurrido >= TIEMPO_RECUPERAR) {
                     return this.pasarA('perseguir', ahora);
                 }
                 break;
 
             case 'herida':
-                if (transcurrido >= TIEMPO_HERIDA)
-                {
+                if (transcurrido >= TIEMPO_HERIDA) {
                     return this.pasarA('perseguir', ahora);
                 }
                 break;
@@ -89,19 +78,16 @@ export class ComportamientoSombra
     }
 
     //  El jugador la ha golpeado: queda aturdida un momento y pierde su ataque
-    recibirGolpe (ahora: number)
-    {
+    recibirGolpe(ahora: number) {
         this.pasarA('herida', ahora);
     }
 
     //  Solo hace daño mientras embiste
-    get haceDano (): boolean
-    {
+    get haceDano(): boolean {
         return this._estado === 'atacar';
     }
 
-    private pasarA (estado: EstadoSombra, ahora: number): boolean
-    {
+    private pasarA(estado: EstadoSombra, ahora: number): boolean {
         this._estado = estado;
         this.desde = ahora;
 

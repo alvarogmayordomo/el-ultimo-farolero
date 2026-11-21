@@ -62,8 +62,7 @@ describe('Luz', () => {
         let frio = 0;
 
         //  60 fotogramas de ~16,7 ms = 1 segundo
-        for (let i = 0; i < 60; i++)
-        {
+        for (let i = 0; i < 60; i++) {
             frio += luz.actualizar(1000 / 60, false);
         }
 

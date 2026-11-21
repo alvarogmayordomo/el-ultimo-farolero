@@ -1,14 +1,11 @@
 import { Scene } from 'phaser';
 
-export class Preloader extends Scene
-{
-    constructor ()
-    {
+export class Preloader extends Scene {
+    constructor() {
         super('Preloader');
     }
 
-    init ()
-    {
+    init() {
         const { width, height } = this.scale;
 
         //  We loaded this image in our Boot Scene, so we can display it here
@@ -23,15 +20,12 @@ export class Preloader extends Scene
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {
-
             //  Update the progress bar (our bar is 464px wide, so 100% = 464px)
-            bar.width = 4 + (460 * progress);
-
+            bar.width = 4 + 460 * progress;
         });
     }
 
-    preload ()
-    {
+    preload() {
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
@@ -46,7 +40,10 @@ export class Preloader extends Scene
         this.load.spritesheet('farolero-andar', 'personajes/farolero-andar.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('farolero-quieto', 'personajes/farolero-quieto.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('farolero-ataque', 'personajes/farolero-ataque.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', {
+            frameWidth: 32,
+            frameHeight: 32
+        });
 
         //  Sombra (Spirit): fotogramas de 16×16, mismo orden que el farolero
         this.load.spritesheet('sombra', 'enemigos/sombra.png', { frameWidth: 16, frameHeight: 16 });
@@ -63,8 +60,7 @@ export class Preloader extends Scene
         this.load.spritesheet('mazmorra', 'objetos/mazmorra.png', { frameWidth: 16, frameHeight: 16 });
     }
 
-    create ()
-    {
+    create() {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
 
@@ -98,7 +94,9 @@ export class Preloader extends Scene
             //  Voltereta: 3 fotogramas por dirección, repartidos en los 0,3 s de la esquiva
             this.anims.create({
                 key: `esquivar-${dir}`,
-                frames: this.anims.generateFrameNumbers('farolero-esquiva', { frames: [columna, columna + 4, columna + 8] }),
+                frames: this.anims.generateFrameNumbers('farolero-esquiva', {
+                    frames: [columna, columna + 4, columna + 8]
+                }),
                 frameRate: 10
             });
 

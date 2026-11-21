@@ -51,7 +51,11 @@ describe('Combo', () => {
         const combo = new Combo();
         combo.atacar(0);
         combo.atacar(DURACION_GOLPE);
-        const tercero = combo.atacar(DURACION_GOLPE * 2)!;
+        const tercero = combo.atacar(DURACION_GOLPE * 2);
+
+        if (!tercero) {
+            throw new Error('El tercer golpe debería empezar');
+        }
 
         expect(combo.atacar(tercero.fin + 10)).toBeNull();
         expect(combo.atacar(tercero.fin + DESCANSO)?.numero).toBe(1);

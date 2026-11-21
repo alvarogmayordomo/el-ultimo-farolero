@@ -9,7 +9,7 @@ export default defineConfig({
                     phaser: ['phaser']
                 }
             }
-        },
+        }
     },
     server: {
         port: 8080
