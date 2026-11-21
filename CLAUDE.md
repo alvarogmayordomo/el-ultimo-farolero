@@ -16,10 +16,14 @@ npm run build      # tsc --noEmit + build de producción en dist/
 npm run typecheck  # solo comprobación de tipos
 npm run preview    # sirve dist/ para probar la build
 npm test           # tests de src/core con Vitest (una pasada)
+npm run lint       # Biome: formato y estilo, sin cambiar nada
+npm run formato    # Biome: formatea y aplica los arreglos seguros
 npx vitest run src/core/combo.test.ts   # un solo archivo de tests
 ```
 
-Los tests (`*.test.ts`) viven junto al código de `src/core`. Aún no hay linter ni formateador: Biome llega en H3, Zod en H4 y Playwright en H6 (versiones en `docs/plan.md`). Para comprobar un cambio: `npm test`, `npm run build` y abrir el juego.
+Los tests (`*.test.ts`) viven junto al código de `src/core`. Biome formatea y revisa el estilo (`biome.json`: 4 espacios, comillas simples, llaves en la misma línea). Un hook de Node (`.claude/hooks/formato.mjs`, PostToolUse) pasa Biome por cada archivo que Claude edita; si queda un error que no sabe arreglar, sale con código 2 y hay que corregirlo. Zod llega en H4 y Playwright en H6 (versiones en `docs/plan.md`). Para comprobar un cambio: `npm run lint`, `npm test`, `npm run build` y abrir el juego.
+
+Publicación: `.github/workflows/pages.yml` pasa lint, tests y build y publica `dist/` en GitHub Pages en cada push a `main` (https://alvarogmayordomo.github.io/el-ultimo-farolero/).
 
 En el panel de navegador de la app de escritorio, el servidor se arranca con la configuración `juego` de `.claude/launch.json`. En desarrollo, `window.juego` es la instancia de Phaser: sirve para inspeccionar escenas desde la consola.
 

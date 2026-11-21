@@ -9,7 +9,12 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git switch *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(node *)",
+      "Bash(npx biome *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npm view *)"
     ],
     "ask": [
       "Bash(git push *)",
@@ -19,14 +24,10 @@
       "Bash(npm install *)",
       "Bash(npm i *)",
       "Bash(npm uninstall *)",
-      "Bash(npx *)",
       "Bash(gh *)",
       "Bash(rm *)",
-      "Bash(node *)",
       "Edit(./.claude/**)",
       "Edit(./.github/**)",
-      "Edit(./package.json)",
-      "Edit(./CLAUDE.md)",
       "WebFetch"
     ],
     "deny": [
