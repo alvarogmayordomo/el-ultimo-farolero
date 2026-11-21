@@ -15,20 +15,25 @@ npm run dev        # servidor de desarrollo en http://localhost:8080 (recarga en
 npm run build      # tsc --noEmit + build de producción en dist/
 npm run typecheck  # solo comprobación de tipos
 npm run preview    # sirve dist/ para probar la build
+npm test           # tests de src/core con Vitest (una pasada)
+npx vitest run src/core/combo.test.ts   # un solo archivo de tests
 ```
 
-Aún no hay tests, linter ni formateador: Vitest llega en H2, Biome en H3, Zod en H4 y Playwright en H6 (versiones en `docs/plan.md`). Para comprobar un cambio hoy: `npm run build` y abrir el juego.
+Los tests (`*.test.ts`) viven junto al código de `src/core`. Aún no hay linter ni formateador: Biome llega en H3, Zod en H4 y Playwright en H6 (versiones en `docs/plan.md`). Para comprobar un cambio: `npm test`, `npm run build` y abrir el juego.
 
-En el panel de navegador de la app de escritorio, el servidor se arranca con la configuración `juego` de `.claude/launch.json`.
+En el panel de navegador de la app de escritorio, el servidor se arranca con la configuración `juego` de `.claude/launch.json`. En desarrollo, `window.juego` es la instancia de Phaser: sirve para inspeccionar escenas desde la consola.
 
 ## Phaser 4, no Phaser 3
 
 - Phaser está fijado en **4.2.1 exacta**. Gran parte del código de Phaser que circula es de Phaser 3: comprueba que cada API existe en Phaser 4 (los tipos en `node_modules/phaser/types/` son la referencia) y que `npm run build` pasa.
+- Diferencias ya encontradas: `createLayer` devuelve `TilemapLayer | TilemapGPULayer`; una `RenderTexture` necesita `render()` tras dibujar y `erase()` coloca la textura por su centro; `setTintFill()` se sustituye por `setTint(color).setTintMode(TintModes.FILL)`. Importa de `'phaser'` lo que se use en tiempo de ejecución (`Geom`, `Math`, `TintModes`…): el global `Phaser` solo sirve para tipos.
 - Si una técnica no funciona en Phaser 4, avísalo en vez de improvisar. El plan B (pasar a Phaser 3) lo decide Álvaro, no Claude.
 
 ## Arquitectura
 
-Hoy el código es la plantilla oficial `template-vite-ts` sin modificar: `index.html` → `src/main.ts` → `src/game/main.ts` (configuración del juego y lista de escenas) → escenas en `src/game/scenes/` encadenadas con `this.scene.start()`: `Boot` (carga lo mínimo) → `Preloader` (barra de carga y assets) → `MainMenu` → `Game` → `GameOver`. Los assets se sirven desde `public/assets/` y se cargan con rutas relativas a esa carpeta.
+Flujo: `index.html` → `src/main.ts` → `src/game/main.ts` (configuración del juego y lista de escenas) → escenas en `src/game/scenes/` encadenadas con `this.scene.start()`: `Boot` (carga lo mínimo) → `Preloader` (assets y todas las animaciones) → `MainMenu` → `Game` → `GameOver`. Los assets se sirven desde `public/assets/` y se cargan con rutas relativas a esa carpeta; cada uno se registra en `assets.manifest.json`.
+
+`Game` carga el mapa de Tiled (`public/assets/mapas/prueba.tmj`; los objetos `inicio` y `sombra` marcan dónde aparecen los personajes), crea los personajes de `src/game/objetos/` (`Farolero`, `Sombra`), lee el teclado y, cada fotograma, comprueba golpes y dibuja la oscuridad. Los objetos solo mueven y animan sprites: las reglas (combo, esquiva, PV y daño, IA de la Sombra) están en `src/core/` y se usan desde ahí.
 
 Estructura objetivo (decisión del plan; respétala al añadir código):
 

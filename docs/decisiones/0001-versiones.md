@@ -17,8 +17,9 @@ Durante el MVP no se actualiza ninguna dependencia. Estas son las versiones inst
 | Git for Windows | 2.56.1 | La actual | |
 | GitHub CLI (`gh`) | 2.105.0 | La actual | Sesión de `alvarogmayordomo` |
 | Tiled | 1.12.2 | 1.12 | Instalado con winget (`Tiled.Tiled`) |
+| Vitest | 5.1.1 | 5.1.1 | Instalado en H2, fijado sin `^` en `package.json` |
 
-Pendientes de instalar en su hito: Vitest 5.1.1 (H2), Biome 2.6.x (H3), Zod 4.x (H4) y Playwright 1.65.1 (H6).
+Pendientes de instalar en su hito: Biome 2.6.x (H3), Zod 4.x (H4) y Playwright 1.65.1 (H6).
 
 ## Origen de la plantilla
 
