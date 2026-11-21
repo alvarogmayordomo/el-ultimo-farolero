@@ -13,7 +13,7 @@ describe('Luchador', () => {
 
     it('los PV no bajan de 0 y a 0 ya no está vivo', () => {
         const fuerte = new Luchador({ pv: 100, atq: 100, def: 0 });
-        const debil = new Luchador({ pv: 5, atq: 1, def: 0 });
+        const debil = new Luchador({ pv: 50, atq: 1, def: 0 });
 
         debil.recibirGolpe(fuerte, 1, 0);
 
@@ -30,5 +30,17 @@ describe('Luchador', () => {
         expect(jugador.recibirGolpe(sombra, 1, 599)).toBe(0);
         expect(jugador.recibirGolpe(sombra, 1, 600)).toBe(8);
         expect(jugador.pv).toBe(84);
+    });
+
+    it('pierde PV por el frío aunque sea invulnerable, sin bajar de 0', () => {
+        const jugador = new Luchador({ pv: 50, atq: 10, def: 0 }, 600);
+        const sombra = new Luchador({ pv: 30, atq: 8, def: 0 });
+        jugador.recibirGolpe(sombra, 1, 0);
+
+        jugador.perderPv(3);
+        expect(jugador.pv).toBe(39);
+        jugador.perderPv(100);
+        expect(jugador.pv).toBe(0);
+        expect(jugador.vivo).toBe(false);
     });
 });

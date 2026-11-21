@@ -37,6 +37,13 @@ export class Luchador
         return ahora < this.invulnerableHasta;
     }
 
+    //  Pierde PV sin golpe ni fórmula de daño (por ejemplo, el frío sin Luz).
+    //  No respeta la invulnerabilidad: el frío no se esquiva.
+    perderPv (cantidad: number)
+    {
+        this.pv = Math.max(0, this.pv - cantidad);
+    }
+
     //  Recibe un golpe de `atacante` con el multiplicador dado.
     //  Devuelve el daño aplicado (0 si estaba muerto o era invulnerable).
     recibirGolpe (atacante: Luchador, multiplicador: number, ahora: number): number
