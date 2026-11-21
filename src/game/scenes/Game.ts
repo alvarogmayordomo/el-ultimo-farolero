@@ -2,9 +2,8 @@ import { Scene } from 'phaser';
 
 export class Game extends Scene
 {
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    msg_text : Phaser.GameObjects.Text;
+    mapa: Phaser.Tilemaps.Tilemap;
+    muros: Phaser.Tilemaps.TilemapLayer;
 
     constructor ()
     {
@@ -13,23 +12,24 @@ export class Game extends Scene
 
     create ()
     {
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00ff00);
+        //  Mapa de Tiled: el nombre de cada tileset debe coincidir con el del .tmj
+        this.mapa = this.make.tilemap({ key: 'mapa-prueba' });
+        const suelo = this.mapa.addTilesetImage('suelo-interior', 'tiles-suelo');
+        const muros = this.mapa.addTilesetImage('muros-simples', 'tiles-muros');
 
-        this.background = this.add.image(this.scale.width / 2, this.scale.height / 2, 'background');
-        this.background.setAlpha(0.5);
+        if (!suelo || !muros)
+        {
+            throw new Error('No se han podido cargar los tilesets del mapa');
+        }
 
-        this.msg_text = this.add.text(this.scale.width / 2, this.scale.height / 2, 'Make something fun!\nand share it with us:\nsupport@phaser.io', {
-            fontFamily: 'Arial Black', fontSize: 20, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        });
-        this.msg_text.setOrigin(0.5);
+        this.mapa.createLayer('suelo', suelo);
+        const capaMuros = this.mapa.createLayer('muros', muros);
 
-        this.input.once('pointerdown', () => {
+        if (!capaMuros)
+        {
+            throw new Error('El mapa no tiene la capa «muros»');
+        }
 
-            this.scene.start('GameOver');
-
-        });
+        this.muros = capaMuros;
     }
 }

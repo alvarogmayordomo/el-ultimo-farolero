@@ -1,0 +1,23 @@
+{
+  "fuentes": {
+    "ninja-adventure": {
+      "nombre": "Ninja Adventure Asset Pack",
+      "autores": ["Pixel-boy", "AAA"],
+      "url": "https://pixel-boy.itch.io/ninja-adventure-asset-pack",
+      "licencia": "CC0-1.0",
+      "prueba": "docs/licencias/ninja-adventure-CC0.txt"
+    }
+  },
+  "recursos": [
+    {
+      "archivo": "public/assets/tilesets/suelo-interior.png",
+      "fuente": "ninja-adventure",
+      "original": "Backgrounds/Tilesets/Interior/TilesetInteriorFloor.png"
+    },
+    {
+      "archivo": "public/assets/tilesets/muros-simples.png",
+      "fuente": "ninja-adventure",
+      "original": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png"
+    }
+  ]
+}

@@ -36,6 +36,11 @@ export class Preloader extends Scene
         this.load.setPath('assets');
 
         this.load.image('logo', 'logo.png');
+
+        //  Mapa de prueba de H1 (Tiled, JSON) y las imágenes de sus tilesets
+        this.load.tilemapTiledJSON('mapa-prueba', 'mapas/prueba.tmj');
+        this.load.image('tiles-suelo', 'tilesets/suelo-interior.png');
+        this.load.image('tiles-muros', 'tilesets/muros-simples.png');
     }
 
     create ()
