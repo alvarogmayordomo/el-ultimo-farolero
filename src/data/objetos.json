@@ -1,0 +1,5 @@
+{
+  "katana": { "nombre": "Katana", "ranura": "arma", "atq": 4, "def": 0, "sprite": "katana" },
+  "amuleto": { "nombre": "Amuleto de ámbar", "ranura": "talisman", "atq": 0, "def": 8, "sprite": "amuleto" },
+  "gran-espada": { "nombre": "Gran espada", "ranura": "arma", "atq": 9, "def": 0, "sprite": "gran-espada" }
+}

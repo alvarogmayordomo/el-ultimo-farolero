@@ -14,10 +14,10 @@ Tres líneas por sesión, escritas por Álvaro (no por Claude):
 |H1|6-8 h|||
 |H2|6-8 h|||
 |H3|6-8 h|||
-|Decisión A|—|—|Entrega A (F0-H3): si pasa de 35 h, el Bruto sale del MVP|
-|H4|6-8 h|||
-|H5|6-8 h|||
-|H6|6-10 h|||
+|Decisión A|—|—|Entrega A (F0-H3): si pasa de 35 h, el Bruto sale del MVP. Saltada a petición de Álvaro (2026-11-21); el Bruto entra|
+|H4|6-8 h||Hecho por Claude sin supervisión (2026-11-21), sin prueba de comprensión|
+|H5|6-8 h||Ídem|
+|H6|6-10 h||Ídem. Falta jugarlo y balancearlo|
 
 ## Sesiones
 

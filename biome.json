@@ -6,7 +6,17 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "vite/**", ".claude/hooks/**", "biome.json", "assets.manifest.json"]
+    "includes": [
+      "src/**",
+      "vite/**",
+      "e2e/**",
+      "scripts/**",
+      ".claude/hooks/**",
+      "playwright.config.ts",
+      "vitest.config.ts",
+      "biome.json",
+      "assets.manifest.json"
+    ]
   },
   "formatter": {
     "enabled": true,

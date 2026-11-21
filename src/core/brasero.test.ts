@@ -45,4 +45,24 @@ describe('Brasero', () => {
         expect(brasero.recargaA(ALCANCE_RECARGA)).toBe(true);
         expect(brasero.recargaA(ALCANCE_RECARGA + 1)).toBe(false);
     });
+
+    it('apagado deja de recargar y se puede volver a encender', () => {
+        const brasero = new Brasero();
+        const luz = new Luz(10);
+        brasero.encender(0, luz);
+
+        expect(brasero.apagar()).toBe(true);
+        expect(brasero.apagar()).toBe(false);
+        expect(brasero.recargaA(0)).toBe(false);
+        luz.gastar(50);
+        expect(brasero.encender(0, luz)).toBe(true);
+        expect(luz.valor).toBe(100);
+    });
+
+    it('restaurado desde una partida guardada está encendido sin tocar la Luz', () => {
+        const brasero = new Brasero();
+        brasero.restaurarEncendido();
+
+        expect(brasero.encendido).toBe(true);
+    });
 });

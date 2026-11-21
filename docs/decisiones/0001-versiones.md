@@ -19,8 +19,10 @@ Durante el MVP no se actualiza ninguna dependencia. Estas son las versiones inst
 | Tiled | 1.12.2 | 1.12 | Instalado con winget (`Tiled.Tiled`) |
 | Vitest | 5.1.1 | 5.1.1 | Instalado en H2, fijado sin `^` en `package.json` |
 | Biome | 2.6.6 | 2.6.x | Instalado en H3, fijado sin `^`. Se eligió la última 2.6 con más de dos semanas publicada |
+| Zod | 4.6.7 | 4.x | Instalado en H4, fijado sin `^`. Valida los JSON de src/data y el guardado |
+| Playwright (@playwright/test) | 1.65.1 | 1.65.1 | Instalado en H4 (con Álvaro delante) para usarlo en H6; Chromium con `npm run e2e:instalar` |
 
-Pendientes de instalar en su hito: Zod 4.x (H4) y Playwright 1.65.1 (H6).
+Todas las dependencias del plan están instaladas.
 
 ## Origen de la plantilla
 

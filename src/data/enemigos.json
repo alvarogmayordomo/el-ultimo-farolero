@@ -1,0 +1,41 @@
+{
+  "sombra": {
+    "nombre": "Sombra",
+    "sprite": "sombra",
+    "color": "#8a6fd1",
+    "estadisticas": { "pv": 30, "atq": 12, "def": 0 },
+    "experiencia": 10,
+    "comportamiento": "cuerpo",
+    "velocidad": 42,
+    "velocidadAtaque": 150,
+    "aturdible": true,
+    "distancias": { "deteccion": 96, "olvido": 140, "alcance": 22 },
+    "tiempos": { "preparar": 450, "atacar": 220, "recuperar": 600, "herida": 250 }
+  },
+  "arquero": {
+    "nombre": "Arquero",
+    "sprite": "arquero",
+    "color": "#b9b0d8",
+    "estadisticas": { "pv": 24, "atq": 11, "def": 0 },
+    "experiencia": 15,
+    "comportamiento": "distancia",
+    "velocidad": 34,
+    "distancias": { "deteccion": 130, "olvido": 180, "alcance": 110, "huida": 44 },
+    "tiempos": { "preparar": 700, "recargar": 1200, "herida": 250 },
+    "flecha": { "velocidad": 130, "alcance": 170, "multiplicador": 1 }
+  },
+  "bruto": {
+    "nombre": "Bruto",
+    "sprite": "bruto",
+    "color": "#9b7fb8",
+    "escala": 1.5,
+    "estadisticas": { "pv": 90, "atq": 24, "def": 15 },
+    "experiencia": 35,
+    "comportamiento": "cuerpo",
+    "velocidad": 26,
+    "velocidadAtaque": 120,
+    "aturdible": false,
+    "distancias": { "deteccion": 90, "olvido": 150, "alcance": 28 },
+    "tiempos": { "preparar": 800, "atacar": 280, "recuperar": 1100, "herida": 200 }
+  }
+}

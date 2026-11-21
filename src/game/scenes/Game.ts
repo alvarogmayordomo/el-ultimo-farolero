@@ -1,25 +1,32 @@
-import { BlendModes, Geom, Input, Scene, Tilemaps } from 'phaser';
+import { Geom, Input, Scene, Tilemaps } from 'phaser';
 import { ALCANCE_ENCENDER, RADIO_LUZ_BRASERO } from '../../core/brasero';
 import type { Golpe } from '../../core/combo';
 import { MULTIPLICADOR_LANZA } from '../../core/lanza';
-import { LUZ_POR_GOLPE, RADIO_MAX } from '../../core/luz';
+import { LUZ_POR_GOLPE } from '../../core/luz';
+import { cambiarDeNivel, clave, copiarPartida, type Partida, partidaNueva, trasMorir } from '../../core/partida';
+import { MAX_POCIONES } from '../../core/pociones';
+import { ENEMIGOS, NIVELES, OBJETOS, objetoPorId } from '../../data/datos';
+import type { DatosNivel } from '../../data/esquemas';
+import { borrar, cargar, guardar } from '../../platform/guardado';
+import { Oscuridad } from '../Oscuridad';
 import { Brasero } from '../objetos/Brasero';
 import { VECTORES } from '../objetos/direcciones';
+import { Enemigo } from '../objetos/Enemigo';
 import { Farolero } from '../objetos/Farolero';
+import { Flecha } from '../objetos/Flecha';
+import { EXPERIENCIA_GUARDIANA, Guardiana } from '../objetos/Guardiana';
 import { Lanza } from '../objetos/Lanza';
-import { Sombra } from '../objetos/Sombra';
+import { Recogible } from '../objetos/Recogible';
 import type { Hud } from './Hud';
-
-//  La textura «luz» se crea con el radio máximo y se escala según el radio que toque
-const RADIO_TEXTURA_LUZ = RADIO_MAX;
-
-//  Margen de la capa de oscuridad alrededor de la vista: la cámara se coloca
-//  después de update(), así que la capa va un fotograma por detrás y el margen
-//  evita que asome un borde sin oscurecer.
-const MARGEN_OSCURIDAD = 32;
 
 //  Ángulo del efecto de tajo (el sprite apunta a la derecha)
 const ANGULO_TAJO = { derecha: 0, abajo: 90, izquierda: 180, arriba: -90 };
+
+//  Al reaparecer junto a un brasero, el farolero sale un poco por debajo de él
+const SEPARACION_BRASERO = 18;
+
+//  Con las pociones al máximo, cada cuánto se repite el aviso al pisar otra (ms)
+const AVISO_POCIONES_LLENAS = 3000;
 
 interface Teclas {
     flechas: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -31,43 +38,103 @@ interface Teclas {
     esquivar: Input.Keyboard.Key[];
     lanzar: Input.Keyboard.Key[];
     encender: Input.Keyboard.Key[];
+    beber: Input.Keyboard.Key[];
 }
 
+//  De los dos objetos que Phaser pasa a una respuesta de choque, el que es de la clase
+//  pedida (o null). Así no importa en qué orden los pase.
+// biome-ignore lint/suspicious/noExplicitAny: el constructor de cualquier clase
+function deClase<T>(Clase: new (...args: any[]) => T, a: unknown, b: unknown): T | null {
+    if (a instanceof Clase) {
+        return a;
+    }
+
+    return b instanceof Clase ? b : null;
+}
+
+//  La partida en curso vive en el registro del juego, compartida entre escenas
+export function partidaEnCurso(escena: Scene): Partida {
+    const partida = escena.registry.get('partida') as Partida | undefined;
+
+    if (!partida) {
+        const nueva = partidaNueva(NIVELES[0].id);
+        escena.registry.set('partida', nueva);
+        return nueva;
+    }
+
+    return partida;
+}
+
+//  La escena de juego: carga el nivel de la partida en curso, crea a los personajes,
+//  lee el teclado y, cada fotograma, comprueba golpes, luz, objetos y salida.
+//  Las reglas están en src/core; aquí solo se conectan con Phaser.
 export class Game extends Scene {
     mapa: Phaser.Tilemaps.Tilemap;
     muros: Phaser.Tilemaps.TilemapLayer;
     jugador: Farolero;
-    sombras: Sombra[];
+    enemigos: Enemigo[];
     braseros: Brasero[];
+    recogibles: Phaser.GameObjects.Group;
     lanzas: Phaser.GameObjects.Group;
+    flechas: Phaser.GameObjects.Group;
+    guardiana: Guardiana | null;
+    salida: Geom.Rectangle | null;
     teclas: Teclas;
-    oscuridad: Phaser.GameObjects.RenderTexture;
 
-    //  Golpe del combo en curso y Sombras que ya ha alcanzado (cada golpe daña una vez)
+    private partida: Partida;
+    private nivel: DatosNivel;
+    private oscuridad: Oscuridad;
+    private grupoEnemigos: Phaser.GameObjects.Group;
+
+    //  Golpe del combo en curso y a quién ha alcanzado ya (cada golpe daña una vez)
     private golpeEnCurso: Golpe | null = null;
-    private alcanzadas = new Set<Sombra>();
+    private alcanzados = new Set<Enemigo | Guardiana>();
+
+    //  Para no repetir el final (muerte, victoria o cambio de nivel) varias veces
+    private terminando = false;
+
+    //  Última vez que se avisó de que no caben más pociones
+    private ultimoAvisoPociones = -Infinity;
 
     constructor() {
         super('Game');
     }
 
-    create() {
+    init() {
+        this.partida = partidaEnCurso(this);
+        this.nivel = NIVELES.find((n) => n.id === this.partida.nivel) ?? NIVELES[0];
         this.golpeEnCurso = null;
-        this.alcanzadas.clear();
+        this.alcanzados.clear();
+        this.terminando = false;
+        this.ultimoAvisoPociones = -Infinity;
+        this.guardiana = null;
+        this.salida = null;
+    }
 
+    create() {
         this.crearMapa();
-        this.crearPersonajes();
+        this.crearObjetosDelMapa();
         this.crearControles();
         this.crearColisiones();
         this.crearCamara();
-        this.crearOscuridad();
+        this.oscuridad = new Oscuridad(this);
 
         //  El HUD es otra escena, a 640×360, que se dibuja encima de esta
         this.scene.launch('Hud');
         this.events.once('shutdown', () => this.scene.stop('Hud'));
+        this.time.delayedCall(50, () => this.hud()?.anunciar(this.nivel.nombre));
+
+        this.cameras.main.fadeIn(400, 0, 0, 0);
     }
 
     update(ahora: number, delta: number) {
+        if (this.terminando) {
+            this.actualizarOscuridad();
+            return;
+        }
+
+        this.partida.estadisticas.tiempo += delta;
+
         const entrada = this.leerEntrada();
         const golpe = this.jugador.actualizar(ahora, entrada);
 
@@ -80,31 +147,32 @@ export class Game extends Scene {
         }
 
         if (entrada.encender) {
-            this.encenderBraseroCercano();
+            this.encenderBraseroCercano(ahora);
+        }
+
+        if (entrada.beber) {
+            this.beberPocion();
         }
 
         this.comprobarGolpeDelJugador(ahora);
-        this.actualizarLanzas();
+        this.actualizarProyectiles();
+        this.actualizarEnemigos(ahora);
+        this.actualizarGuardiana(ahora);
         this.actualizarLuz(delta);
-
-        const objetivo = this.jugador.body.center;
-        this.sombras = this.sombras.filter((sombra) => sombra.active);
-        for (const sombra of this.sombras) {
-            sombra.actualizar(ahora, objetivo.x, objetivo.y);
-        }
-
-        this.comprobarAtaquesDeSombras(ahora);
         this.actualizarOscuridad();
         this.actualizarHud();
+        this.comprobarSalida();
 
         if (!this.jugador.luchador.vivo) {
-            this.scene.start('GameOver');
+            this.morir();
         }
     }
 
+    // ── Creación del nivel ───────────────────────────────────────────────
+
     private crearMapa() {
         //  Mapa de Tiled: el nombre de cada tileset debe coincidir con el del .tmj
-        this.mapa = this.make.tilemap({ key: 'mapa-prueba' });
+        this.mapa = this.make.tilemap({ key: `mapa-${this.nivel.mapa}` });
         const suelo = this.mapa.addTilesetImage('suelo-interior', 'tiles-suelo');
         const muros = this.mapa.addTilesetImage('muros-simples', 'tiles-muros');
 
@@ -127,41 +195,89 @@ export class Game extends Scene {
         this.muros.setCollisionByExclusion([-1]);
     }
 
-    private crearPersonajes() {
-        //  Los puntos «inicio» y «sombra» se colocan en Tiled, en la capa de objetos «objetos»
-        const inicio = this.mapa.findObject('objetos', (objeto) => objeto.name === 'inicio');
-        this.jugador = new Farolero(this, inicio?.x ?? 0, inicio?.y ?? 0);
+    //  Recorre la capa «objetos» de Tiled. Cada objeto se reconoce por su nombre:
+    //  inicio, salida, brasero, jefe, pocion, un id de enemigos.json o de objetos.json.
+    private crearObjetosDelMapa() {
+        const objetos = this.mapa.getObjectLayer('objetos')?.objects ?? [];
+        const nivel = this.nivel.id;
 
-        this.sombras =
-            this.mapa
-                .filterObjects('objetos', (objeto) => objeto.name === 'sombra')
-                ?.map((punto) => new Sombra(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
-
-        //  Los braseros también son puntos «brasero» de la capa «objetos»
-        this.braseros =
-            this.mapa
-                .filterObjects('objetos', (objeto) => objeto.name === 'brasero')
-                ?.map((punto) => new Brasero(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
-
+        this.enemigos = [];
+        this.braseros = [];
+        this.recogibles = this.add.group();
         this.lanzas = this.add.group();
+        this.flechas = this.add.group();
+
+        let inicio = { x: 0, y: 0 };
+
+        for (const objeto of objetos) {
+            const x = objeto.x ?? 0;
+            const y = objeto.y ?? 0;
+            const nombre = objeto.name;
+            const suClave = clave(nivel, objeto.id);
+
+            if (nombre === 'inicio') {
+                inicio = { x, y };
+            } else if (nombre === 'salida') {
+                this.salida = new Geom.Rectangle(x, y, objeto.width ?? 16, objeto.height ?? 16);
+            } else if (nombre === 'brasero') {
+                const brasero = new Brasero(this, x, y, suClave);
+                if (this.partida.braseros.includes(suClave)) {
+                    brasero.restaurar();
+                }
+                this.braseros.push(brasero);
+            } else if (nombre === 'jefe' && this.nivel.jefe) {
+                this.guardiana = new Guardiana(
+                    this,
+                    x,
+                    y,
+                    (mx, my, ancho, alto) =>
+                        this.muros.getTilesWithinWorldXY(mx, my, ancho, alto, { isNotEmpty: true }).length > 0
+                );
+            } else if (nombre in ENEMIGOS) {
+                this.enemigos.push(new Enemigo(this, x, y, nombre, ENEMIGOS[nombre]));
+            } else if ((nombre === 'pocion' || nombre in OBJETOS) && !this.partida.recogidos.includes(suClave)) {
+                this.recogibles.add(new Recogible(this, x, y, nombre, suClave));
+            }
+        }
+
+        //  Se aparece junto al último brasero encendido de este nivel, o en el inicio
+        const brasero = this.braseros.find((b) => b.clave === this.partida.brasero);
+        const aparicion = brasero ? { x: brasero.x, y: brasero.y + SEPARACION_BRASERO } : inicio;
+        this.jugador = new Farolero(this, aparicion.x, aparicion.y, this.partida);
+        this.grupoEnemigos = this.add.group(this.enemigos);
     }
 
     private crearColisiones() {
-        this.physics.add.collider(this.jugador, this.muros);
-        //  En un grupo, las Sombras que mueren salen solas y el collider no las toca
-        const grupoSombras = this.add.group(this.sombras);
-        this.physics.add.collider(grupoSombras, this.muros);
+        const solidos = [this.muros, ...this.braseros];
 
-        //  Los braseros bloquean el paso a todos
-        this.physics.add.collider(this.jugador, this.braseros);
-        this.physics.add.collider(grupoSombras, this.braseros);
+        this.physics.add.collider(this.jugador, solidos);
+        this.physics.add.collider(this.grupoEnemigos, solidos);
 
-        //  La Lanza se apaga al chocar con un muro o un brasero, y daña a la primera Sombra que toca
-        this.physics.add.collider(this.lanzas, this.muros, (lanza) => (lanza as Lanza).apagar());
-        this.physics.add.collider(this.lanzas, this.braseros, (lanza) => (lanza as Lanza).apagar());
-        this.physics.add.overlap(this.lanzas, grupoSombras, (lanza, sombra) =>
-            this.lanzaAlcanza(lanza as Lanza, sombra as Sombra)
+        if (this.guardiana) {
+            this.physics.add.collider(this.guardiana, solidos);
+        }
+
+        //  Ojo: en un choque entre un grupo y un objeto suelto, Phaser no siempre pasa los
+        //  dos en el orden en que se escriben. Por eso cada respuesta busca su objeto por
+        //  clase con `deClase` en vez de fiarse de la posición.
+
+        //  La Lanza se apaga al chocar con un muro o un brasero, y daña al primer enemigo que toca
+        this.physics.add.collider(this.lanzas, solidos, (a, b) => deClase(Lanza, a, b)?.apagar());
+        this.physics.add.overlap(this.lanzas, this.grupoEnemigos, (a, b) =>
+            this.lanzaAlcanza(deClase(Lanza, a, b), deClase(Enemigo, a, b))
         );
+
+        if (this.guardiana) {
+            this.physics.add.overlap(this.lanzas, this.guardiana, (a, b) =>
+                this.lanzaAlcanza(deClase(Lanza, a, b), deClase(Guardiana, a, b))
+            );
+        }
+
+        //  Las flechas se rompen contra muros y braseros, y hieren al farolero
+        this.physics.add.collider(this.flechas, solidos, (a, b) => deClase(Flecha, a, b)?.destroy());
+        this.physics.add.overlap(this.jugador, this.flechas, (a, b) => this.flechaAlcanza(deClase(Flecha, a, b)));
+
+        this.physics.add.overlap(this.jugador, this.recogibles, (a, b) => this.recoger(deClase(Recogible, a, b)));
     }
 
     private crearCamara() {
@@ -186,7 +302,8 @@ export class Game extends Scene {
             throw new Error('No hay teclado disponible');
         }
 
-        //  Atacar: J o Espacio. Esquivar: K o Mayúsculas. Lanza de Luz: L. Encender brasero: E.
+        //  Atacar: J o Espacio. Esquivar: K o Mayúsculas. Lanza de Luz: L.
+        //  Encender brasero: E. Poción: Q. Pausa: Esc o P.
         this.teclas = {
             flechas: teclado.createCursorKeys(),
             arriba: teclado.addKey('W'),
@@ -196,8 +313,18 @@ export class Game extends Scene {
             atacar: [teclado.addKey('J'), teclado.addKey('SPACE')],
             esquivar: [teclado.addKey('K'), teclado.addKey('SHIFT')],
             lanzar: [teclado.addKey('L')],
-            encender: [teclado.addKey('E')]
+            encender: [teclado.addKey('E')],
+            beber: [teclado.addKey('Q')]
         };
+
+        const pausar = () => {
+            if (!this.terminando) {
+                this.scene.pause();
+                this.scene.launch('Pausa');
+            }
+        };
+        teclado.addKey('ESC').on('down', pausar);
+        teclado.addKey('P').on('down', pausar);
 
         //  F2 muestra u oculta las cajas de colisión (ayuda de desarrollo)
         teclado.addKey('F2').on('down', () => this.alternarDebugFisicas());
@@ -218,13 +345,16 @@ export class Game extends Scene {
             atacar: recienPulsada(t.atacar),
             esquivar: recienPulsada(t.esquivar),
             lanzar: recienPulsada(t.lanzar),
-            encender: recienPulsada(t.encender)
+            encender: recienPulsada(t.encender),
+            beber: recienPulsada(t.beber)
         };
     }
 
+    // ── Combate ──────────────────────────────────────────────────────────
+
     private empezarGolpe(golpe: Golpe) {
         this.golpeEnCurso = golpe;
-        this.alcanzadas.clear();
+        this.alcanzados.clear();
 
         //  Efecto de tajo delante del farolero, girado hacia donde mira
         const mirando = this.jugador.mirando;
@@ -237,7 +367,7 @@ export class Game extends Scene {
         tajo.once('animationcomplete', () => tajo.destroy());
     }
 
-    //  Mientras dura el golpe, cada Sombra dentro de la zona recibe daño una sola vez
+    //  Mientras dura el golpe, cada enemigo dentro de la zona recibe daño una sola vez
     private comprobarGolpeDelJugador(ahora: number) {
         const golpe = this.golpeEnCurso;
 
@@ -248,19 +378,34 @@ export class Game extends Scene {
 
         const zona = this.jugador.zonaDeGolpe();
         const centro = this.jugador.body.center;
+        const objetivos: (Enemigo | Guardiana)[] = [...this.enemigos];
 
-        for (const sombra of this.sombras) {
-            if (!sombra.active || this.alcanzadas.has(sombra)) {
+        if (this.guardiana?.active) {
+            objetivos.push(this.guardiana);
+        }
+
+        for (const objetivo of objetivos) {
+            if (!objetivo.active || this.alcanzados.has(objetivo)) {
                 continue;
             }
 
-            if (Geom.Intersects.RectangleToRectangle(zona, sombra.getBounds())) {
-                this.alcanzadas.add(sombra);
+            const cuerpo = objetivo.body;
+            const caja = new Geom.Rectangle(cuerpo.x, cuerpo.y, cuerpo.width, cuerpo.height);
 
-                //  Cada golpe que hace daño devuelve un poco de Luz
-                if (sombra.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora, centro.x, centro.y) > 0) {
-                    this.jugador.luz.ganar(LUZ_POR_GOLPE);
-                }
+            if (!cuerpo.enable || !Geom.Intersects.RectangleToRectangle(zona, caja)) {
+                continue;
+            }
+
+            this.alcanzados.add(objetivo);
+            const dano =
+                objetivo instanceof Guardiana
+                    ? objetivo.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora)
+                    : objetivo.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora, centro.x, centro.y);
+
+            //  Cada golpe que hace daño devuelve un poco de Luz
+            if (dano > 0) {
+                this.jugador.luz.ganar(LUZ_POR_GOLPE);
+                this.comprobarDerrota(objetivo);
             }
         }
     }
@@ -272,22 +417,141 @@ export class Game extends Scene {
         this.lanzas.add(new Lanza(this, centro.x + v.x * 10, centro.y + v.y * 10 - 4, mirando));
     }
 
-    private actualizarLanzas() {
-        //  Se recorre una copia: una Lanza que se apaga sale del grupo a mitad del recorrido
-        for (const lanza of [...this.lanzas.getChildren()]) {
-            (lanza as Lanza).actualizar();
-        }
-    }
-
     //  La Lanza daña con la fórmula de siempre y se apaga (no atraviesa)
-    private lanzaAlcanza(lanza: Lanza, sombra: Sombra) {
-        if (!lanza.active || !sombra.active) {
+    private lanzaAlcanza(lanza: Lanza | null, objetivo: Enemigo | Guardiana | null) {
+        if (!lanza?.active || !objetivo?.active) {
             return;
         }
 
-        sombra.recibirGolpe(this.jugador.luchador, MULTIPLICADOR_LANZA, this.time.now, lanza.x, lanza.y);
-        lanza.apagar();
+        const ahora = this.time.now;
+        const dano =
+            objetivo instanceof Guardiana
+                ? objetivo.recibirGolpe(this.jugador.luchador, MULTIPLICADOR_LANZA, ahora)
+                : objetivo.recibirGolpe(this.jugador.luchador, MULTIPLICADOR_LANZA, ahora, lanza.x, lanza.y);
+
+        //  Contra la Guardiana en el aire la Lanza la atraviesa sin hacer nada
+        if (dano > 0 || !(objetivo instanceof Guardiana)) {
+            lanza.apagar();
+        }
+
+        if (dano > 0) {
+            this.comprobarDerrota(objetivo);
+        }
     }
+
+    private flechaAlcanza(flecha: Flecha | null) {
+        if (!flecha?.active) {
+            return;
+        }
+
+        const ahora = this.time.now;
+
+        if (this.jugador.esVulnerable(ahora)) {
+            this.jugador.recibirGolpe(flecha.tirador, ahora, flecha.x, flecha.y, flecha.multiplicador);
+            flecha.destroy();
+        }
+    }
+
+    //  Si el golpe ha acabado con el enemigo: experiencia, recuento y, con el jefe, victoria
+    private comprobarDerrota(objetivo: Enemigo | Guardiana) {
+        if (objetivo.luchador.vivo) {
+            return;
+        }
+
+        this.partida.estadisticas.enemigosVencidos++;
+        const experiencia = objetivo instanceof Guardiana ? EXPERIENCIA_GUARDIANA : objetivo.datos.experiencia;
+        const subidos = this.jugador.ganarExperiencia(experiencia);
+
+        if (subidos > 0) {
+            this.hud()?.mensaje(`¡Nivel ${this.jugador.experiencia.nivel}! Más vida, ataque y defensa`);
+        }
+
+        if (objetivo instanceof Guardiana) {
+            this.ganar();
+        }
+    }
+
+    private actualizarProyectiles() {
+        //  Se recorre una copia: un proyectil que desaparece sale del grupo a mitad del recorrido
+        for (const lanza of [...this.lanzas.getChildren()]) {
+            (lanza as Lanza).actualizar();
+        }
+
+        for (const flecha of [...this.flechas.getChildren()]) {
+            (flecha as Flecha).actualizar();
+        }
+    }
+
+    private actualizarEnemigos(ahora: number) {
+        const objetivo = this.jugador.body.center;
+        this.enemigos = this.enemigos.filter((enemigo) => enemigo.active);
+
+        for (const enemigo of this.enemigos) {
+            const disparo = enemigo.actualizar(ahora, objetivo.x, objetivo.y);
+
+            if (disparo && enemigo.datos.comportamiento === 'distancia') {
+                const { velocidad, alcance, multiplicador } = enemigo.datos.flecha;
+                this.flechas.add(
+                    new Flecha(
+                        this,
+                        disparo.x,
+                        disparo.y,
+                        disparo.dx,
+                        disparo.dy,
+                        enemigo.luchador,
+                        multiplicador,
+                        velocidad,
+                        alcance
+                    )
+                );
+            }
+
+            //  Un enemigo cuerpo a cuerpo que embiste y toca al farolero le hace daño
+            if (enemigo.ia.haceDano && this.jugador.esVulnerable(ahora) && this.seTocan(enemigo.body)) {
+                this.jugador.recibirGolpe(enemigo.luchador, ahora, enemigo.body.center.x, enemigo.body.center.y);
+            }
+        }
+    }
+
+    private actualizarGuardiana(ahora: number) {
+        const guardiana = this.guardiana;
+
+        if (!guardiana?.active || !guardiana.luchador.vivo) {
+            return;
+        }
+
+        const pies = this.jugador.body.center;
+        const faseAntes = guardiana.ia.fase;
+        const { golpe, apagar } = guardiana.actualizar(ahora, pies.x, pies.y);
+
+        if (guardiana.ia.fase === 2 && faseAntes === 1) {
+            this.hud()?.mensaje('¡La Guardiana se enfurece!');
+        }
+
+        if (golpe?.alcanza(pies.x, pies.y)) {
+            const origen = guardiana.pies;
+            this.jugador.recibirGolpe(guardiana.luchador, ahora, origen.x, origen.y, golpe.multiplicador);
+        }
+
+        //  Fase 2: apaga todos los braseros de la sala. Reencenderlos la aturde.
+        if (apagar) {
+            for (const brasero of this.braseros) {
+                brasero.apagar();
+            }
+            this.cameras.main.flash(250, 20, 0, 30);
+            this.hud()?.mensaje('¡Ha apagado los braseros! Enciende uno (E) para aturdirla');
+        }
+    }
+
+    private seTocan(cuerpo: Phaser.Physics.Arcade.Body): boolean {
+        const j = this.jugador.body;
+        return Geom.Intersects.RectangleToRectangle(
+            new Geom.Rectangle(j.x, j.y, j.width, j.height),
+            new Geom.Rectangle(cuerpo.x, cuerpo.y, cuerpo.width, cuerpo.height)
+        );
+    }
+
+    // ── Braseros, Luz, objetos ───────────────────────────────────────────
 
     //  El brasero apagado más cercano, si está al alcance para encenderlo
     private braseroApagadoCercano(): Brasero | null {
@@ -305,9 +569,81 @@ export class Game extends Scene {
         return mejor;
     }
 
-    private encenderBraseroCercano() {
+    private encenderBraseroCercano(ahora: number) {
         const { x, y } = this.jugador.body.center;
-        this.braseroApagadoCercano()?.encender(x, y, this.jugador.luz);
+        const brasero = this.braseroApagadoCercano();
+
+        if (!brasero?.encender(x, y, this.jugador.luz)) {
+            return;
+        }
+
+        const partida = this.partida;
+        if (!partida.braseros.includes(brasero.clave)) {
+            partida.braseros.push(brasero.clave);
+        }
+
+        //  En plena pelea con la Guardiana no se guarda: encender la aturde (fase 2)
+        const guardiana = this.guardiana;
+        if (guardiana?.luchador.vivo && guardiana.ia.estado !== 'dormida') {
+            if (guardiana.ia.braseroEncendido(ahora)) {
+                this.hud()?.mensaje('¡La luz aturde a la Guardiana!');
+            }
+            return;
+        }
+
+        partida.brasero = brasero.clave;
+        this.jugador.volcarEn(partida);
+        const guardado = guardar(copiarPartida(partida));
+        this.hud()?.mensaje(
+            guardado ? 'Brasero encendido · Partida guardada' : 'Brasero encendido (no se ha podido guardar)'
+        );
+    }
+
+    private beberPocion() {
+        const curado = this.jugador.pociones.beber(this.jugador.luchador);
+
+        if (curado > 0) {
+            this.hud()?.mensaje(`+${curado} PV`);
+        } else if (this.jugador.pociones.cantidad === 0) {
+            this.hud()?.mensaje('No te quedan pociones');
+        }
+    }
+
+    private recoger(recogible: Recogible | null) {
+        if (!recogible?.active) {
+            return;
+        }
+
+        if (recogible.tipo === 'pocion') {
+            if (!this.jugador.pociones.recoger()) {
+                //  Con el máximo, la poción se queda en el suelo para luego. Se avisa una
+                //  vez cada pocos segundos (el solape se repite en cada fotograma).
+                const ahora = this.time.now;
+                if (ahora - this.ultimoAvisoPociones > AVISO_POCIONES_LLENAS) {
+                    this.ultimoAvisoPociones = ahora;
+                    this.hud()?.mensaje(`Ya llevas ${MAX_POCIONES} pociones: bebe una (Q) para coger esta`);
+                }
+                return;
+            }
+            this.hud()?.mensaje('Poción (Q para beber)');
+        } else {
+            const objeto = objetoPorId(recogible.tipo);
+
+            if (!objeto) {
+                return;
+            }
+
+            if (this.jugador.equipo.recoger(objeto)) {
+                this.jugador.recalcularEstadisticas();
+                const mejora = objeto.atq > 0 ? `ATQ +${objeto.atq}` : `DEF +${objeto.def}`;
+                this.hud()?.mensaje(`${objeto.nombre} equipado (${mejora})`);
+            } else {
+                this.hud()?.mensaje(`${objeto.nombre}: ya llevas algo mejor`);
+            }
+        }
+
+        this.partida.recogidos.push(recogible.clave);
+        recogible.destroy();
     }
 
     //  La Luz se gasta con el tiempo o se recarga junto a un brasero encendido.
@@ -322,15 +658,40 @@ export class Game extends Scene {
         }
     }
 
-    private actualizarHud() {
+    private actualizarOscuridad() {
+        const focos = [{ x: this.jugador.x, y: this.jugador.y, radio: this.jugador.luz.radio }];
+
+        for (const brasero of this.braseros) {
+            if (brasero.encendido) {
+                //  Un leve parpadeo para que parezca fuego
+                const parpadeo = Math.sin(this.time.now / 90 + brasero.x) * 3;
+                focos.push({ x: brasero.x, y: brasero.y, radio: RADIO_LUZ_BRASERO + parpadeo });
+            }
+        }
+
+        //  La Lanza de Luz alumbra un poco a su paso
+        for (const lanza of this.lanzas.getChildren() as Lanza[]) {
+            focos.push({ x: lanza.x, y: lanza.y, radio: 28 });
+        }
+
+        this.oscuridad.dibujar(focos);
+    }
+
+    private hud(): Hud | null {
         const hud = this.scene.get('Hud') as Hud;
 
         //  La escena del HUD arranca un fotograma después que esta
-        if (!hud.sys.isActive()) {
+        return hud.sys.isActive() ? hud : null;
+    }
+
+    private actualizarHud() {
+        const hud = this.hud();
+
+        if (!hud) {
             return;
         }
 
-        const { luchador, luz } = this.jugador;
+        const { luchador, luz, experiencia, pociones, equipo } = this.jugador;
         let aviso: string | null = null;
 
         if (this.braseroApagadoCercano()) {
@@ -339,89 +700,89 @@ export class Game extends Scene {
             aviso = 'Sin Luz, el frío te hiere. Busca un brasero';
         }
 
-        hud.mostrar({ pv: luchador.pv, pvMax: luchador.pvMax, luz: luz.valor, aviso });
+        const guardiana = this.guardiana;
+
+        hud.mostrar({
+            pv: luchador.pv,
+            pvMax: luchador.pvMax,
+            luz: luz.valor,
+            nivel: experiencia.nivel,
+            experiencia: experiencia.total,
+            siguienteNivel: experiencia.siguienteNivel,
+            pociones: pociones.cantidad,
+            equipo: [equipo.arma?.nombre, equipo.talisman?.nombre].filter((n): n is string => Boolean(n)),
+            aviso,
+            jefe:
+                guardiana?.active && guardiana.ia.estado !== 'dormida'
+                    ? { nombre: 'La Guardiana del Pozo', proporcion: guardiana.proporcionPv }
+                    : null
+        });
     }
 
-    //  Una Sombra que embiste y toca al farolero le hace daño (salvo si está esquivando)
-    private comprobarAtaquesDeSombras(ahora: number) {
-        const cuerpoJugador = this.cuerpoComoRectangulo(this.jugador.body);
+    // ── Final del nivel: salida, muerte, victoria ────────────────────────
 
-        for (const sombra of this.sombras) {
-            if (!sombra.ia.haceDano || !this.jugador.esVulnerable(ahora)) {
-                continue;
-            }
-
-            if (Geom.Intersects.RectangleToRectangle(cuerpoJugador, this.cuerpoComoRectangulo(sombra.body))) {
-                this.jugador.recibirGolpe(sombra.luchador, ahora, sombra.body.center.x, sombra.body.center.y);
-            }
-        }
-    }
-
-    private cuerpoComoRectangulo(cuerpo: Phaser.Physics.Arcade.Body): Geom.Rectangle {
-        return new Geom.Rectangle(cuerpo.x, cuerpo.y, cuerpo.width, cuerpo.height);
-    }
-
-    private crearOscuridad() {
-        //  Textura «luz»: un círculo blanco que se desvanece hacia el borde. Al borrar
-        //  con ella, la oscuridad desaparece del todo en el centro y poco a poco hacia fuera.
-        if (!this.textures.exists('luz')) {
-            const lienzo = this.textures.createCanvas('luz', RADIO_TEXTURA_LUZ * 2, RADIO_TEXTURA_LUZ * 2);
-
-            if (!lienzo) {
-                throw new Error('No se ha podido crear la textura de luz');
-            }
-
-            const ctx = lienzo.getContext();
-            const r = RADIO_TEXTURA_LUZ;
-            const degradado = ctx.createRadialGradient(r, r, 0, r, r, r);
-            degradado.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            degradado.addColorStop(0.5, 'rgba(255, 255, 255, 0.85)');
-            degradado.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            ctx.fillStyle = degradado;
-            ctx.fillRect(0, 0, r * 2, r * 2);
-            lienzo.refresh();
+    private comprobarSalida() {
+        if (!this.salida) {
+            return;
         }
 
-        //  Capa negra del tamaño de la vista (320×180) más un margen, por encima de todo
-        const camara = this.cameras.main;
-        this.oscuridad = this.add.renderTexture(
-            0,
-            0,
-            camara.width / camara.zoom + MARGEN_OSCURIDAD * 2,
-            camara.height / camara.zoom + MARGEN_OSCURIDAD * 2
-        );
-        this.oscuridad.setOrigin(0, 0);
-        this.oscuridad.setDepth(1000);
+        const { x, y } = this.jugador.body.center;
+
+        if (!this.salida.contains(x, y)) {
+            return;
+        }
+
+        const indice = NIVELES.findIndex((n) => n.id === this.nivel.id);
+        const siguiente = NIVELES[indice + 1];
+
+        if (!siguiente) {
+            return;
+        }
+
+        this.terminando = true;
+        this.jugador.setVelocity(0, 0);
+        this.jugador.volcarEn(this.partida);
+        cambiarDeNivel(this.partida, siguiente.id);
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => this.scene.restart());
     }
 
-    private actualizarOscuridad() {
-        //  Cada fotograma: se coloca la capa sobre la vista, se pinta de negro
-        //  y se borra un círculo de luz en el farolero (según su Luz) y en cada brasero encendido
-        const vista = this.cameras.main.worldView;
-        const x = Math.floor(vista.x) - MARGEN_OSCURIDAD;
-        const y = Math.floor(vista.y) - MARGEN_OSCURIDAD;
+    private morir() {
+        if (this.terminando) {
+            return;
+        }
 
-        this.oscuridad.setPosition(x, y);
-        this.oscuridad.fill(0x000000, 1);
-        this.borrarLuz(this.jugador.x - x, this.jugador.y - y, this.jugador.luz.radio);
+        this.terminando = true;
+        this.jugador.setVelocity(0, 0);
+        this.jugador.setTint(0x404040);
 
+        //  Se vuelve a lo guardado en el último brasero, pero la muerte y el tiempo cuentan
+        const guardada = cargar() ?? partidaNueva(NIVELES[0].id);
+        const siguiente = trasMorir(guardada, this.partida);
+        guardar(siguiente);
+        this.registry.set('partida', siguiente);
+
+        this.time.delayedCall(700, () => this.scene.start('GameOver'));
+    }
+
+    private ganar() {
+        this.terminando = true;
+        this.jugador.setVelocity(0, 0);
+        this.jugador.volcarEn(this.partida);
+        const estadisticas = { ...this.partida.estadisticas, nivel: this.jugador.experiencia.nivel };
+
+        //  Partida terminada: se borra el guardado (la próxima vez, partida nueva)
+        borrar();
+        this.registry.remove('partida');
+
+        //  Todos los braseros se encienden solos: la sala se ilumina
         for (const brasero of this.braseros) {
-            if (brasero.encendido) {
-                //  Un leve parpadeo para que parezca fuego
-                const parpadeo = Math.sin(this.time.now / 90 + brasero.x) * 3;
-                this.borrarLuz(brasero.x - x, brasero.y - y, RADIO_LUZ_BRASERO + parpadeo);
-            }
+            brasero.restaurar();
         }
 
-        this.oscuridad.render();
-    }
-
-    //  Abre un círculo de luz de `radio` px en (x, y), coordenadas de la capa.
-    //  stamp coloca la textura por su centro; con el modo ERASE borra en vez de pintar.
-    private borrarLuz(x: number, y: number, radio: number) {
-        this.oscuridad.stamp('luz', undefined, x, y, {
-            scale: radio / RADIO_TEXTURA_LUZ,
-            blendMode: BlendModes.ERASE
+        this.time.delayedCall(2500, () => {
+            this.cameras.main.fadeOut(800, 0, 0, 0);
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Victoria', estadisticas));
         });
     }
 

@@ -1,5 +1,12 @@
 import { Scene } from 'phaser';
+import { ENEMIGOS, NIVELES, OBJETOS } from '../../data/datos';
+import { COLORES, estiloTexto } from '../estilo';
 
+//  Las 4 columnas de cada hoja de personaje: abajo, arriba, izquierda, derecha
+const DIRECCIONES = ['abajo', 'arriba', 'izquierda', 'derecha'];
+
+//  Carga todo lo del juego y crea todas las animaciones. Los enemigos, objetos y
+//  niveles salen de src/data: añadir uno no exige tocar este archivo.
 export class Preloader extends Scene {
     constructor() {
         super('Preloader');
@@ -8,67 +15,67 @@ export class Preloader extends Scene {
     init() {
         const { width, height } = this.scale;
 
-        //  We loaded this image in our Boot Scene, so we can display it here
-        const background = this.add.image(width / 2, height / 2, 'background');
-        background.setScale(Math.max(width / background.width, height / background.height));
+        this.add.text(width / 2, height / 2 - 24, 'Encendiendo faroles…', estiloTexto(16)).setOrigin(0.5);
+        this.add.rectangle(width / 2, height / 2 + 6, 240, 10).setStrokeStyle(1, 0xf4e9d0);
+        const barra = this.add.rectangle(
+            width / 2 - 118,
+            height / 2 + 6,
+            2,
+            6,
+            Number.parseInt(COLORES.luz.slice(1), 16)
+        );
+        barra.setOrigin(0, 0.5);
 
-        //  A simple progress bar. This is the outline of the bar.
-        this.add.rectangle(width / 2, height / 2, 468, 32).setStrokeStyle(1, 0xffffff);
-
-        //  This is the progress bar itself. It will increase in size from the left based on the % of progress.
-        const bar = this.add.rectangle(width / 2 - 230, height / 2, 4, 28, 0xffffff);
-
-        //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
-        this.load.on('progress', (progress: number) => {
-            //  Update the progress bar (our bar is 464px wide, so 100% = 464px)
-            bar.width = 4 + 460 * progress;
+        this.load.on('progress', (progreso: number) => {
+            barra.width = 2 + 234 * progreso;
         });
     }
 
     preload() {
-        //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        this.load.image('logo', 'logo.png');
-
-        //  Mapa de prueba de H1 (Tiled, JSON) y las imágenes de sus tilesets
-        this.load.tilemapTiledJSON('mapa-prueba', 'mapas/prueba.tmj');
+        //  Mapas de Tiled (uno por nivel) y las imágenes de sus tilesets
+        for (const nivel of NIVELES) {
+            this.load.tilemapTiledJSON(`mapa-${nivel.mapa}`, `mapas/${nivel.mapa}.tmj`);
+        }
         this.load.image('tiles-suelo', 'tilesets/suelo-interior.png');
         this.load.image('tiles-muros', 'tilesets/muros-simples.png');
 
         //  Farolero (NinjaGreen): fotogramas de 32×32; columnas = dirección, filas = fotograma
-        this.load.spritesheet('farolero-andar', 'personajes/farolero-andar.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('farolero-quieto', 'personajes/farolero-quieto.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('farolero-ataque', 'personajes/farolero-ataque.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', {
-            frameWidth: 32,
-            frameHeight: 32
-        });
+        const hoja32 = { frameWidth: 32, frameHeight: 32 };
+        this.load.spritesheet('farolero-andar', 'personajes/farolero-andar.png', hoja32);
+        this.load.spritesheet('farolero-quieto', 'personajes/farolero-quieto.png', hoja32);
+        this.load.spritesheet('farolero-ataque', 'personajes/farolero-ataque.png', hoja32);
+        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', hoja32);
 
-        //  Sombra (Spirit): fotogramas de 16×16, mismo orden que el farolero
-        this.load.spritesheet('sombra', 'enemigos/sombra.png', { frameWidth: 16, frameHeight: 16 });
+        //  Enemigos de enemigos.json: hojas de 64×64 con fotogramas de 16×16
+        for (const sprite of new Set(Object.values(ENEMIGOS).map((e) => e.sprite))) {
+            this.load.spritesheet(`enemigo-${sprite}`, `enemigos/${sprite}.png`, { frameWidth: 16, frameHeight: 16 });
+        }
 
-        //  Efectos: tajo del golpe (4 fotogramas, apunta a la derecha) y humo (6 fotogramas)
-        this.load.spritesheet('fx-tajo', 'fx/tajo.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('fx-humo', 'fx/humo.png', { frameWidth: 32, frameHeight: 32 });
+        //  La Guardiana del Pozo: fotogramas de 50×50 (5 en reposo, 3 al recibir daño)
+        this.load.spritesheet('guardiana', 'jefe/guardiana.png', { frameWidth: 50, frameHeight: 50 });
+        this.load.spritesheet('guardiana-herida', 'jefe/guardiana-herida.png', { frameWidth: 50, frameHeight: 50 });
 
-        //  Lanza de Luz (bola de energía, 4 fotogramas) y llama de los braseros (12 fotogramas de 8×12)
+        //  Objetos de objetos.json y la poción
+        for (const objeto of Object.values(OBJETOS)) {
+            this.load.image(`objeto-${objeto.sprite}`, `objetos/${objeto.sprite}.png`);
+        }
+        this.load.image('objeto-pocion', 'objetos/pocion.png');
+
+        //  Efectos: tajo del golpe, humo, Lanza de Luz, llama de los braseros y flecha
+        this.load.spritesheet('fx-tajo', 'fx/tajo.png', hoja32);
+        this.load.spritesheet('fx-humo', 'fx/humo.png', hoja32);
         this.load.spritesheet('fx-lanza', 'fx/lanza.png', { frameWidth: 16, frameHeight: 16 });
         this.load.spritesheet('fx-fuego', 'fx/fuego.png', { frameWidth: 8, frameHeight: 12 });
+        this.load.image('fx-flecha', 'fx/flecha.png');
 
         //  Piezas de mazmorra (TilesetDungeon) en fotogramas de 16×16: de aquí sale el brasero
         this.load.spritesheet('mazmorra', 'objetos/mazmorra.png', { frameWidth: 16, frameHeight: 16 });
     }
 
     create() {
-        //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
-        //  For example, you can define global animations here, so we can use them in other scenes.
-
-        //  Animaciones del farolero: andar-<dir> y quieto-<dir>. En cada hoja la columna
-        //  es la dirección (0 abajo, 1 arriba, 2 izquierda, 3 derecha) y hay 4 filas.
-        const direcciones = ['abajo', 'arriba', 'izquierda', 'derecha'];
-
-        direcciones.forEach((dir, columna) => {
+        DIRECCIONES.forEach((dir, columna) => {
             const fotogramas = [columna, columna + 4, columna + 8, columna + 12];
 
             this.anims.create({
@@ -100,12 +107,28 @@ export class Preloader extends Scene {
                 frameRate: 10
             });
 
-            this.anims.create({
-                key: `sombra-${dir}`,
-                frames: this.anims.generateFrameNumbers('sombra', { frames: fotogramas }),
-                frameRate: 6,
-                repeat: -1
-            });
+            //  Una animación por enemigo y dirección: «<id>-<dir>»
+            for (const [id, enemigo] of Object.entries(ENEMIGOS)) {
+                this.anims.create({
+                    key: `${id}-${dir}`,
+                    frames: this.anims.generateFrameNumbers(`enemigo-${enemigo.sprite}`, { frames: fotogramas }),
+                    frameRate: 6,
+                    repeat: -1
+                });
+            }
+        });
+
+        this.anims.create({
+            key: 'guardiana-quieta',
+            frames: this.anims.generateFrameNumbers('guardiana', { start: 0, end: 4 }),
+            frameRate: 7,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'guardiana-herida',
+            frames: this.anims.generateFrameNumbers('guardiana-herida', { start: 0, end: 2 }),
+            frameRate: 12
         });
 
         this.anims.create({
@@ -137,7 +160,6 @@ export class Preloader extends Scene {
             repeat: -1
         });
 
-        //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
         this.scene.start('MainMenu');
     }
 }

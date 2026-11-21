@@ -7,7 +7,7 @@ import type { Luz } from '../../core/luz';
 const FOTOGRAMA_APAGADO = 38;
 const FOTOGRAMA_ENCENDIDO = 26;
 
-//  Un brasero del mapa. Las reglas (encender, recargar) están en src/core/brasero;
+//  Un brasero del mapa. Las reglas (encender, recargar, apagar) están en src/core/brasero;
 //  aquí solo se dibuja el pedestal, la llama y se bloquea el paso.
 export class Brasero extends Physics.Arcade.Image {
     declare body: Physics.Arcade.StaticBody;
@@ -15,10 +15,16 @@ export class Brasero extends Physics.Arcade.Image {
     readonly reglas = new ReglasBrasero();
     private llama: Phaser.GameObjects.Sprite;
 
-    constructor(scene: Scene, x: number, y: number) {
+    constructor(
+        scene: Scene,
+        x: number,
+        y: number,
+        //  Clave única «nivel:id de Tiled», la que se guarda en la partida
+        readonly clave: string
+    ) {
         super(scene, x, y, 'mazmorra', FOTOGRAMA_APAGADO);
         scene.add.existing(this);
-        //  Cuerpo estático: el farolero y las Sombras chocan con él
+        //  Cuerpo estático: el farolero y los enemigos chocan con él
         scene.physics.add.existing(this, true);
         this.body.setSize(12, 10);
 
@@ -33,10 +39,27 @@ export class Brasero extends Physics.Arcade.Image {
             return false;
         }
 
-        this.setFrame(FOTOGRAMA_ENCENDIDO);
-        this.llama.setVisible(true).play('fx-fuego');
+        this.mostrarEncendido(true);
 
         return true;
+    }
+
+    //  Encendido desde una partida guardada (sin llenar la Luz)
+    restaurar() {
+        this.reglas.restaurarEncendido();
+        this.mostrarEncendido(true);
+    }
+
+    //  La Guardiana lo apaga: humo y fuera la llama
+    apagar() {
+        if (!this.reglas.apagar()) {
+            return;
+        }
+
+        this.mostrarEncendido(false);
+        const humo = this.scene.add.sprite(this.x, this.y - 8, 'fx-humo', 0).setScale(0.6);
+        humo.play('fx-humo');
+        humo.once('animationcomplete', () => humo.destroy());
     }
 
     get encendido(): boolean {
@@ -45,5 +68,16 @@ export class Brasero extends Physics.Arcade.Image {
 
     distanciaA(x: number, y: number): number {
         return Math.hypot(x - this.x, y - this.y);
+    }
+
+    private mostrarEncendido(encendido: boolean) {
+        this.setFrame(encendido ? FOTOGRAMA_ENCENDIDO : FOTOGRAMA_APAGADO);
+        this.llama.setVisible(encendido);
+
+        if (encendido) {
+            this.llama.play('fx-fuego');
+        } else {
+            this.llama.stop();
+        }
     }
 }
