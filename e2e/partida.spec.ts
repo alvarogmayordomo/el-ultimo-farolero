@@ -107,6 +107,59 @@ test('se juega, se guarda en un brasero y se continúa tras cerrar el navegador'
     expect(errores).toEqual([]);
 });
 
+//  Fallo real encontrado jugando: la Lanza de Luz contra la Guardiana colgaba el juego
+//  («lanza.apagar is not a function») porque Phaser pasaba los objetos al revés.
+test('la Lanza de Luz daña a la Guardiana sin colgar el juego', async ({ page }) => {
+    const errores: string[] = [];
+    page.on('pageerror', (error) => errores.push(error.message));
+
+    await page.goto('/');
+    await esperarEscena(page, 'MainMenu');
+
+    //  Empieza directamente en el Pozo, a nivel alto y con la Guardiana a tiro
+    await page.evaluate(() => {
+        const juego = (window as unknown as { juego: Juego & { registry: { set(k: string, v: unknown): void } } })
+            .juego;
+        juego.registry.set('partida', {
+            nivel: 'pozo',
+            brasero: null,
+            experiencia: 400,
+            equipo: ['gran-espada'],
+            pociones: 0,
+            braseros: [],
+            recogidos: [],
+            estadisticas: { muertes: 0, enemigosVencidos: 0, tiempo: 0 }
+        });
+        (juego.scene.getScene('MainMenu') as { scene: { start(k: string): void } }).scene.start('Game');
+    });
+    await esperarEscena(page, 'Game');
+
+    const pvGuardiana = () =>
+        page.evaluate(() => {
+            const juego = (window as unknown as { juego: Juego }).juego;
+            const game = juego.scene.getScene('Game') as { guardiana: { luchador: { pv: number } } };
+            return game.guardiana.luchador.pv;
+        });
+    const pvInicial = await pvGuardiana();
+
+    await page.evaluate(() => {
+        const juego = (window as unknown as { juego: Juego }).juego;
+        const game = juego.scene.getScene('Game') as EscenaGame & {
+            guardiana: { x: number; y: number };
+            jugador: { mirando: string };
+        };
+        game.jugador.body.reset(game.guardiana.x - 60, game.guardiana.y + 12);
+        game.jugador.mirando = 'derecha';
+    });
+    await pulsar(page, 'KeyL');
+
+    await expect.poll(pvGuardiana).toBeLessThan(pvInicial);
+    //  El juego sigue vivo: el bucle avanza y no hay errores
+    await page.waitForTimeout(500);
+    expect(await escenasActivas(page)).toContain('Game');
+    expect(errores).toEqual([]);
+});
+
 test('los créditos se abren desde el título', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());

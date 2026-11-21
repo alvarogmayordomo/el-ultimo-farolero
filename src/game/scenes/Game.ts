@@ -37,6 +37,17 @@ interface Teclas {
     beber: Input.Keyboard.Key[];
 }
 
+//  De los dos objetos que Phaser pasa a una respuesta de choque, el que es de la clase
+//  pedida (o null). Así no importa en qué orden los pase.
+// biome-ignore lint/suspicious/noExplicitAny: el constructor de cualquier clase
+function deClase<T>(Clase: new (...args: any[]) => T, a: unknown, b: unknown): T | null {
+    if (a instanceof Clase) {
+        return a;
+    }
+
+    return b instanceof Clase ? b : null;
+}
+
 //  La partida en curso vive en el registro del juego, compartida entre escenas
 export function partidaEnCurso(escena: Scene): Partida {
     const partida = escena.registry.get('partida') as Partida | undefined;
@@ -207,7 +218,13 @@ export class Game extends Scene {
                 }
                 this.braseros.push(brasero);
             } else if (nombre === 'jefe' && this.nivel.jefe) {
-                this.guardiana = new Guardiana(this, x, y);
+                this.guardiana = new Guardiana(
+                    this,
+                    x,
+                    y,
+                    (mx, my, ancho, alto) =>
+                        this.muros.getTilesWithinWorldXY(mx, my, ancho, alto, { isNotEmpty: true }).length > 0
+                );
             } else if (nombre in ENEMIGOS) {
                 this.enemigos.push(new Enemigo(this, x, y, nombre, ENEMIGOS[nombre]));
             } else if ((nombre === 'pocion' || nombre in OBJETOS) && !this.partida.recogidos.includes(suClave)) {
@@ -232,25 +249,27 @@ export class Game extends Scene {
             this.physics.add.collider(this.guardiana, solidos);
         }
 
+        //  Ojo: en un choque entre un grupo y un objeto suelto, Phaser no siempre pasa los
+        //  dos en el orden en que se escriben. Por eso cada respuesta busca su objeto por
+        //  clase con `deClase` en vez de fiarse de la posición.
+
         //  La Lanza se apaga al chocar con un muro o un brasero, y daña al primer enemigo que toca
-        this.physics.add.collider(this.lanzas, solidos, (lanza) => (lanza as Lanza).apagar());
-        this.physics.add.overlap(this.lanzas, this.grupoEnemigos, (lanza, enemigo) =>
-            this.lanzaAlcanza(lanza as Lanza, enemigo as Enemigo)
+        this.physics.add.collider(this.lanzas, solidos, (a, b) => deClase(Lanza, a, b)?.apagar());
+        this.physics.add.overlap(this.lanzas, this.grupoEnemigos, (a, b) =>
+            this.lanzaAlcanza(deClase(Lanza, a, b), deClase(Enemigo, a, b))
         );
 
         if (this.guardiana) {
-            this.physics.add.overlap(this.lanzas, this.guardiana, (_g, lanza) =>
-                this.lanzaAlcanza(lanza as Lanza, this.guardiana)
+            this.physics.add.overlap(this.lanzas, this.guardiana, (a, b) =>
+                this.lanzaAlcanza(deClase(Lanza, a, b), deClase(Guardiana, a, b))
             );
         }
 
         //  Las flechas se rompen contra muros y braseros, y hieren al farolero
-        this.physics.add.collider(this.flechas, solidos, (flecha) => flecha.destroy());
-        this.physics.add.overlap(this.jugador, this.flechas, (_j, flecha) => this.flechaAlcanza(flecha as Flecha));
+        this.physics.add.collider(this.flechas, solidos, (a, b) => deClase(Flecha, a, b)?.destroy());
+        this.physics.add.overlap(this.jugador, this.flechas, (a, b) => this.flechaAlcanza(deClase(Flecha, a, b)));
 
-        this.physics.add.overlap(this.jugador, this.recogibles, (_j, recogible) =>
-            this.recoger(recogible as Recogible)
-        );
+        this.physics.add.overlap(this.jugador, this.recogibles, (a, b) => this.recoger(deClase(Recogible, a, b)));
     }
 
     private crearCamara() {
@@ -391,8 +410,8 @@ export class Game extends Scene {
     }
 
     //  La Lanza daña con la fórmula de siempre y se apaga (no atraviesa)
-    private lanzaAlcanza(lanza: Lanza, objetivo: Enemigo | Guardiana | null) {
-        if (!lanza.active || !objetivo?.active) {
+    private lanzaAlcanza(lanza: Lanza | null, objetivo: Enemigo | Guardiana | null) {
+        if (!lanza?.active || !objetivo?.active) {
             return;
         }
 
@@ -412,8 +431,8 @@ export class Game extends Scene {
         }
     }
 
-    private flechaAlcanza(flecha: Flecha) {
-        if (!flecha.active) {
+    private flechaAlcanza(flecha: Flecha | null) {
+        if (!flecha?.active) {
             return;
         }
 
@@ -582,8 +601,8 @@ export class Game extends Scene {
         }
     }
 
-    private recoger(recogible: Recogible) {
-        if (!recogible.active) {
+    private recoger(recogible: Recogible | null) {
+        if (!recogible?.active) {
             return;
         }
 

@@ -17,6 +17,12 @@ const VELOCIDAD_ACECHO = 32;
 //  Distancia vertical del centro del sprite (50×50) a sus pies (centro del cuerpo)
 const PIES_Y = 12;
 
+//  Tamaño del cuerpo físico (centrado en los pies)
+const CUERPO = { ancho: 26, alto: 18 };
+
+//  La escena dice si un rectángulo del mundo pisa algún muro
+export type HayMuro = (x: number, y: number, ancho: number, alto: number) => boolean;
+
 //  Color de la Guardiana: el espíritu del pack, teñido de penumbra
 const COLOR = 0x7d6bc9;
 const COLOR_FASE_2 = 0xb04a7a;
@@ -43,12 +49,17 @@ export class Guardiana extends Physics.Arcade.Sprite {
     private mirando = { x: 0, y: 1 };
     private estadoAnterior = this.ia.estado;
 
-    constructor(scene: Scene, x: number, y: number) {
+    constructor(
+        scene: Scene,
+        x: number,
+        y: number,
+        private readonly hayMuro: HayMuro = () => false
+    ) {
         super(scene, x, y, 'guardiana', 0);
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
-        this.body.setSize(26, 18);
+        this.body.setSize(CUERPO.ancho, CUERPO.alto);
         this.body.setOffset(12, 28);
         this.setTint(COLOR);
         this.play('guardiana-quieta');
@@ -100,8 +111,11 @@ export class Guardiana extends Physics.Arcade.Sprite {
         }
 
         if (estado === 'prepararSalto') {
-            //  Fija el sitio donde caerá: donde está ahora el farolero
-            this.destinoSalto = { x, y };
+            //  Fija el sitio donde caerá: donde está ahora el farolero, o lo más cerca
+            //  posible si ahí su cuerpo (más grande) pisaría un muro y se quedaría atascada
+            this.destinoSalto = this.sitioLibreHacia(x, y);
+            x = this.destinoSalto.x;
+            y = this.destinoSalto.y;
             this.marca.setPosition(x, y).setVisible(true).setScale(0.3);
             this.scene.tweens.add({ targets: this.marca, scale: 1, duration: 300 });
         }
@@ -112,11 +126,33 @@ export class Guardiana extends Physics.Arcade.Sprite {
         }
 
         if (this.estadoAnterior === 'salto') {
+            //  Cae justo en la marca (el último fotograma del arco aún va unos px en el aire,
+            //  y desde ahí su cuerpo podía quedar metido en un muro y atascarse)
+            this.setPosition(this.destinoSalto.x, this.destinoSalto.y - PIES_Y);
             this.body.enable = true;
             this.body.reset(this.x, this.y);
             this.marca.setVisible(false);
             this.scene.cameras.main.shake(180, 0.006);
         }
+    }
+
+    //  Desde (x, y) se acerca a ella de 4 en 4 px hasta que su cuerpo cabe sin tocar muros
+    private sitioLibreHacia(x: number, y: number): { x: number; y: number } {
+        const origen = this.pies;
+        const distancia = Math.hypot(origen.x - x, origen.y - y);
+        const pasos = Math.ceil(distancia / 4);
+
+        for (let i = 0; i <= pasos; i++) {
+            const t = pasos === 0 ? 0 : i / pasos;
+            const px = x + (origen.x - x) * t;
+            const py = y + (origen.y - y) * t;
+
+            if (!this.hayMuro(px - CUERPO.ancho / 2, py - CUERPO.alto / 2, CUERPO.ancho, CUERPO.alto)) {
+                return { x: px, y: py };
+            }
+        }
+
+        return origen;
     }
 
     private mover(ahora: number, hx: number, hy: number) {
