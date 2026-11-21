@@ -43,4 +43,31 @@ describe('Luchador', () => {
         expect(jugador.pv).toBe(0);
         expect(jugador.vivo).toBe(false);
     });
+
+    it('curar no pasa del máximo y devuelve lo curado', () => {
+        const jugador = new Luchador({ pv: 100, atq: 10, def: 0 });
+        jugador.perderPv(30);
+
+        expect(jugador.curar(20)).toBe(20);
+        expect(jugador.curar(50)).toBe(10);
+        expect(jugador.pv).toBe(100);
+    });
+
+    it('al subir el máximo de PV la vida actual sube lo mismo', () => {
+        const jugador = new Luchador({ pv: 100, atq: 10, def: 5 });
+        jugador.perderPv(40);
+        jugador.aplicarEstadisticas({ pv: 115, atq: 12, def: 7 });
+
+        expect(jugador.pvMax).toBe(115);
+        expect(jugador.pv).toBe(75);
+        expect(jugador.atq).toBe(12);
+        expect(jugador.def).toBe(7);
+    });
+
+    it('al bajar el máximo de PV la vida se recorta, pero no mata', () => {
+        const jugador = new Luchador({ pv: 100, atq: 10, def: 5 });
+        jugador.aplicarEstadisticas({ pv: 80, atq: 10, def: 5 });
+
+        expect(jugador.pv).toBe(80);
+    });
 });

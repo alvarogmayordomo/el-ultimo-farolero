@@ -9,7 +9,7 @@ export interface Estadisticas {
 }
 
 export class Luchador {
-    readonly pvMax: number;
+    pvMax: number;
     pv: number;
     atq: number;
     def: number;
@@ -33,6 +33,24 @@ export class Luchador {
 
     invulnerable(ahora: number): boolean {
         return ahora < this.invulnerableHasta;
+    }
+
+    //  Recupera PV sin pasar del máximo. Devuelve cuántos ha recuperado de verdad.
+    curar(cantidad: number): number {
+        const antes = this.pv;
+        this.pv = Math.min(this.pvMax, this.pv + Math.max(0, cantidad));
+
+        return this.pv - antes;
+    }
+
+    //  Cambia las estadísticas (al subir de nivel o cambiar de equipo). Si sube el
+    //  máximo de PV, la vida actual sube lo mismo; si baja, se recorta al nuevo máximo.
+    aplicarEstadisticas(estadisticas: Estadisticas) {
+        const subida = estadisticas.pv - this.pvMax;
+        this.pvMax = estadisticas.pv;
+        this.pv = Math.min(this.pvMax, Math.max(this.vivo ? 1 : 0, this.pv + Math.max(0, subida)));
+        this.atq = estadisticas.atq;
+        this.def = estadisticas.def;
     }
 
     //  Pierde PV sin golpe ni fórmula de daño (por ejemplo, el frío sin Luz).
