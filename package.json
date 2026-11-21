@@ -8,11 +8,14 @@
     "dev": "vite --config vite/config.dev.mjs",
     "build": "tsc --noEmit && vite build --config vite/config.prod.mjs",
     "preview": "vite preview --config vite/config.prod.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "typescript": "~5.7.2",
-    "vite": "^6.3.1"
+    "vite": "^6.3.1",
+    "vitest": "5.1.1"
   },
   "dependencies": {
     "phaser": "4.2.1",
