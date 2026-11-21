@@ -15,15 +15,19 @@ npm run dev        # servidor de desarrollo en http://localhost:8080 (recarga en
 npm run build      # tsc --noEmit + build de producción en dist/
 npm run typecheck  # solo comprobación de tipos
 npm run preview    # sirve dist/ para probar la build
-npm test           # tests de src/core con Vitest (una pasada)
+npm test           # tests de src/ (lógica, datos, guardado y licencias) con Vitest
 npm run lint       # Biome: formato y estilo, sin cambiar nada
 npm run formato    # Biome: formatea y aplica los arreglos seguros
+npm run e2e        # Playwright: partida de prueba en Chromium sin ventana (arranca npm run dev)
+npm run creditos   # regenera CREDITS.md desde assets.manifest.json
 npx vitest run src/core/combo.test.ts   # un solo archivo de tests
 ```
 
-Los tests (`*.test.ts`) viven junto al código de `src/core`. Biome formatea y revisa el estilo (`biome.json`: 4 espacios, comillas simples, llaves en la misma línea). Un hook de Node (`.claude/hooks/formato.mjs`, PostToolUse) pasa Biome por cada archivo que Claude edita; si queda un error que no sabe arreglar, sale con código 2 y hay que corregirlo. Zod llega en H4 y Playwright en H6 (versiones en `docs/plan.md`). Para comprobar un cambio: `npm run lint`, `npm test`, `npm run build` y abrir el juego.
+Los tests (`*.test.ts`) viven junto al código de `src/`; las pruebas de Playwright, en `e2e/`. Un test de `src/data` falla si un archivo de `public/assets` no está en `assets.manifest.json` con licencia CC0 o CC-BY. Biome formatea y revisa el estilo (`biome.json`: 4 espacios, comillas simples, llaves en la misma línea). Un hook de Node (`.claude/hooks/formato.mjs`, PostToolUse) pasa Biome por cada archivo que Claude edita; si queda un error que no sabe arreglar, sale con código 2 y hay que corregirlo. Para comprobar un cambio: `npm run lint`, `npm test`, `npm run build`, `npm run e2e` y abrir el juego.
 
-Publicación: `.github/workflows/pages.yml` pasa lint, tests y build y publica `dist/` en GitHub Pages en cada push a `main` (https://alvarogmayordomo.github.io/el-ultimo-farolero/).
+Publicación: `.github/workflows/pages.yml` pasa lint, tests y build y publica `dist/` en GitHub Pages en cada push a `main` (https://alvarogmayordomo.github.io/el-ultimo-farolero/). `.github/workflows/ci.yml` hace lo mismo más Playwright en cada pull request.
+
+Herramientas de Claude Code del proyecto: la skill `/nuevo-enemigo` (`.claude/skills/`), el subagente `revisor` que solo lee (`.claude/agents/`) y reglas por carpeta en `src/core/CLAUDE.md`, `src/game/CLAUDE.md` y `src/data/CLAUDE.md`.
 
 En el panel de navegador de la app de escritorio, el servidor se arranca con la configuración `juego` de `.claude/launch.json`. En desarrollo, `window.juego` es la instancia de Phaser: sirve para inspeccionar escenas desde la consola.
 
@@ -35,9 +39,11 @@ En el panel de navegador de la app de escritorio, el servidor se arranca con la 
 
 ## Arquitectura
 
-Flujo: `index.html` → `src/main.ts` → `src/game/main.ts` (configuración del juego y lista de escenas) → escenas en `src/game/scenes/` encadenadas con `this.scene.start()`: `Boot` (carga lo mínimo) → `Preloader` (assets y todas las animaciones) → `MainMenu` → `Game` → `GameOver`. Los assets se sirven desde `public/assets/` y se cargan con rutas relativas a esa carpeta; cada uno se registra en `assets.manifest.json`.
+Flujo: `index.html` → `src/main.ts` → `src/game/main.ts` (configuración del juego y lista de escenas) → escenas en `src/game/scenes/` encadenadas con `this.scene.start()`: `Boot` → `Preloader` (assets y animaciones, leyendo `src/data`) → `MainMenu` (Continuar, Nueva partida, Créditos) → `Game` (con `Hud` encima y `Pausa`) → `GameOver` («Has caído») o `Victoria`; `Creditos` aparte. Los assets se sirven desde `public/assets/` y se cargan con rutas relativas a esa carpeta; cada uno se registra en `assets.manifest.json`.
 
-`Game` carga el mapa de Tiled (`public/assets/mapas/prueba.tmj`; los objetos `inicio` y `sombra` marcan dónde aparecen los personajes), crea los personajes de `src/game/objetos/` (`Farolero`, `Sombra`), lee el teclado y, cada fotograma, comprueba golpes y dibuja la oscuridad. Los objetos solo mueven y animan sprites: las reglas (combo, esquiva, PV y daño, IA de la Sombra) están en `src/core/` y se usan desde ahí.
+La partida en curso (`src/core/partida.ts`) vive en `this.registry`. `Game` carga el nivel de la partida (`src/data/niveles.json` → `public/assets/mapas/<mapa>.tmj`) y recorre la capa `objetos` de Tiled: `inicio`, `salida` (rectángulo), `brasero`, `jefe`, `pocion` y cualquier id de `enemigos.json` u `objetos.json`. Crea los objetos de `src/game/objetos/` (`Farolero`, `Enemigo`, `Guardiana`, `Brasero`, `Lanza`, `Flecha`, `Recogible`), lee el teclado y, cada fotograma, comprueba golpes, Luz, objetos y salida, y dibuja la oscuridad (`src/game/Oscuridad.ts`). Encender un brasero guarda la partida (`src/platform/guardado.ts`); morir vuelve al último guardado. Los objetos solo mueven y animan sprites: las reglas (combo, esquiva, Luz, daño, experiencia, equipo, IA de enemigos y del jefe) están en `src/core/`.
+
+Los mapas se generaron con un script y siguen siendo `.tmj` normales: se editan en Tiled.
 
 Estructura objetivo (decisión del plan; respétala al añadir código):
 
@@ -58,7 +64,7 @@ Decisiones técnicas fijadas en el plan:
 - **Alcance:** solo lo del MVP de `docs/plan.md`. No añadas nada de la lista «lo que no se hace» ni actualices dependencias. Si algo nuevo parece necesario, propónlo antes.
 - **Tras cada hito** (F0, H1…H6): explica a Álvaro en lenguaje llano qué ha cambiado y por qué.
 - **Pruebas de comprensión:** cuando Álvaro diga que va a arreglar un fallo él solo, explica pero no escribas código.
-- **Assets:** solo CC0 o CC-BY. Cada recurso nuevo se registra con su licencia (más adelante en `assets.manifest.json`). La licencia MIT de la plantilla está en `docs/licencias/`.
+- **Assets:** solo CC0 o CC-BY. Cada recurso nuevo se registra en `assets.manifest.json` (si no, `npm test` falla) y después se ejecuta `npm run creditos`. La licencia MIT de la plantilla está en `docs/licencias/`.
 - **Seguridad:** no ejecutes `curl`/`wget` ni instales paquetes sin preguntar; no hagas `git push --force`. Las reglas de `.claude/settings.json` usan `Bash(...)` y no cubren la herramienta PowerShell: aplícalas igualmente.
 
 ## Entorno
