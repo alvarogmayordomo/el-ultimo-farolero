@@ -13,13 +13,17 @@ export class MainMenu extends Scene
 
     create ()
     {
-        this.background = this.add.image(512, 384, 'background');
+        const { width, height } = this.scale;
 
-        this.logo = this.add.image(512, 300, 'logo');
+        //  El fondo de la plantilla es de 1024×768: se escala para cubrir el lienzo
+        this.background = this.add.image(width / 2, height / 2, 'background');
+        this.background.setScale(Math.max(width / this.background.width, height / this.background.height));
 
-        this.title = this.add.text(512, 460, 'Main Menu', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
+        this.logo = this.add.image(width / 2, height / 2 - 50, 'logo').setScale(0.6);
+
+        this.title = this.add.text(width / 2, height / 2 + 50, 'Main Menu', {
+            fontFamily: 'Arial Black', fontSize: 24, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 6,
             align: 'center'
         }).setOrigin(0.5);
 

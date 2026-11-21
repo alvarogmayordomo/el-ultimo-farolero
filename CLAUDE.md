@@ -39,7 +39,7 @@ Estructura objetivo (decisión del plan; respétala al añadir código):
 
 Decisiones técnicas fijadas en el plan:
 
-- Lienzo de 640×360, cámara del juego con zoom ×2 (vista de 320×180) y HUD a 640×360. La plantilla aún usa 1024×768.
+- Lienzo de 640×360, cámara del juego con zoom ×2 (vista de 320×180) y HUD a 640×360, con `pixelArt: true`.
 - Mapas de Tiled con baldosas de 16 px.
 - Oscuridad: textura negra a pantalla completa en la que cada fotograma se abre un círculo degradado en el jugador y en cada brasero, según la Luz.
 - Daño: `ATQ × multiplicador × 100 / (100 + DEF)`, siempre con esta fórmula.
