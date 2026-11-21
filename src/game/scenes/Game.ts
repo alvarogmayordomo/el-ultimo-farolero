@@ -24,6 +24,7 @@ export class Game extends Scene
         this.crearMapa();
         this.crearJugador();
         this.crearControles();
+        this.crearColisiones();
     }
 
     update ()
@@ -54,6 +55,9 @@ export class Game extends Scene
         }
 
         this.muros = capaMuros;
+
+        //  Toda baldosa de la capa «muros» bloquea el paso (-1 = casilla vacía)
+        this.muros.setCollisionByExclusion([-1]);
     }
 
     private crearJugador ()
@@ -65,6 +69,16 @@ export class Game extends Scene
 
         this.jugador = this.physics.add.sprite(x, y, 'farolero-quieto', 0);
         this.jugador.play('quieto-abajo');
+
+        //  Cuerpo físico pequeño en los pies (el dibujo ocupa ~16 px dentro del marco de 32):
+        //  así la cabeza puede solapar un muro que está detrás, como en los Zelda cenitales
+        this.jugador.body.setSize(10, 8);
+        this.jugador.body.setOffset(11, 16);
+    }
+
+    private crearColisiones ()
+    {
+        this.physics.add.collider(this.jugador, this.muros);
     }
 
     private crearControles ()
@@ -83,6 +97,26 @@ export class Game extends Scene
             izquierda: teclado.addKey('A'),
             derecha: teclado.addKey('D')
         };
+
+        //  F2 muestra u oculta las cajas de colisión (ayuda de desarrollo)
+        teclado.addKey('F2').on('down', () => this.alternarDebugFisicas());
+    }
+
+    private alternarDebugFisicas ()
+    {
+        const mundo = this.physics.world;
+
+        //  Con debug: false en la configuración, la capa de depuración aún no existe
+        const mostrar = !(mundo.debugGraphic && mundo.debugGraphic.visible && mundo.drawDebug);
+
+        if (!mundo.debugGraphic)
+        {
+            mundo.createDebugGraphic();
+        }
+
+        mundo.drawDebug = mostrar;
+        mundo.debugGraphic.clear();
+        mundo.debugGraphic.setVisible(mundo.drawDebug);
     }
 
     private moverJugador ()
