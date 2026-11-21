@@ -4,6 +4,7 @@ import type { Golpe } from '../../core/combo';
 import { MULTIPLICADOR_LANZA } from '../../core/lanza';
 import { LUZ_POR_GOLPE } from '../../core/luz';
 import { cambiarDeNivel, clave, copiarPartida, type Partida, partidaNueva, trasMorir } from '../../core/partida';
+import { MAX_POCIONES } from '../../core/pociones';
 import { ENEMIGOS, NIVELES, OBJETOS, objetoPorId } from '../../data/datos';
 import type { DatosNivel } from '../../data/esquemas';
 import { borrar, cargar, guardar } from '../../platform/guardado';
@@ -23,6 +24,9 @@ const ANGULO_TAJO = { derecha: 0, abajo: 90, izquierda: 180, arriba: -90 };
 
 //  Al reaparecer junto a un brasero, el farolero sale un poco por debajo de él
 const SEPARACION_BRASERO = 18;
+
+//  Con las pociones al máximo, cada cuánto se repite el aviso al pisar otra (ms)
+const AVISO_POCIONES_LLENAS = 3000;
 
 interface Teclas {
     flechas: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -89,6 +93,9 @@ export class Game extends Scene {
     //  Para no repetir el final (muerte, victoria o cambio de nivel) varias veces
     private terminando = false;
 
+    //  Última vez que se avisó de que no caben más pociones
+    private ultimoAvisoPociones = -Infinity;
+
     constructor() {
         super('Game');
     }
@@ -99,6 +106,7 @@ export class Game extends Scene {
         this.golpeEnCurso = null;
         this.alcanzados.clear();
         this.terminando = false;
+        this.ultimoAvisoPociones = -Infinity;
         this.guardiana = null;
         this.salida = null;
     }
@@ -608,6 +616,13 @@ export class Game extends Scene {
 
         if (recogible.tipo === 'pocion') {
             if (!this.jugador.pociones.recoger()) {
+                //  Con el máximo, la poción se queda en el suelo para luego. Se avisa una
+                //  vez cada pocos segundos (el solape se repite en cada fotograma).
+                const ahora = this.time.now;
+                if (ahora - this.ultimoAvisoPociones > AVISO_POCIONES_LLENAS) {
+                    this.ultimoAvisoPociones = ahora;
+                    this.hud()?.mensaje(`Ya llevas ${MAX_POCIONES} pociones: bebe una (Q) para coger esta`);
+                }
                 return;
             }
             this.hud()?.mensaje('Poción (Q para beber)');

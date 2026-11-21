@@ -160,6 +160,62 @@ test('la Lanza de Luz daña a la Guardiana sin colgar el juego', async ({ page }
     expect(errores).toEqual([]);
 });
 
+//  Fallo encontrado jugando: con 3 pociones, la del Pozo no se cogía y no decía por qué
+test('con las pociones al máximo avisa, y tras beber una se puede coger la del suelo', async ({ page }) => {
+    await page.goto('/');
+    await esperarEscena(page, 'MainMenu');
+
+    await page.evaluate(() => {
+        const juego = (window as unknown as { juego: Juego & { registry: { set(k: string, v: unknown): void } } })
+            .juego;
+        juego.registry.set('partida', {
+            nivel: 'pozo',
+            brasero: null,
+            experiencia: 0,
+            equipo: [],
+            pociones: 3,
+            braseros: [],
+            recogidos: [],
+            estadisticas: { muertes: 0, enemigosVencidos: 0, tiempo: 0 }
+        });
+        (juego.scene.getScene('MainMenu') as { scene: { start(k: string): void } }).scene.start('Game');
+    });
+    await esperarEscena(page, 'Hud');
+
+    type ConPociones = EscenaGame & {
+        recogibles: { getChildren(): { x: number; y: number; active: boolean }[] };
+        jugador: { pociones: { cantidad: number }; luchador: { perderPv(n: number): void } };
+    };
+
+    //  Encima de la poción con 3/3: sigue en el suelo y sale el aviso
+    await page.evaluate(() => {
+        const juego = (window as unknown as { juego: Juego }).juego;
+        const game = juego.scene.getScene('Game') as ConPociones;
+        const pocion = game.recogibles.getChildren()[0];
+        game.jugador.body.reset(pocion.x, pocion.y + 2);
+        game.jugador.luchador.perderPv(50);
+    });
+    const textosDelHud = () =>
+        page.evaluate(() => {
+            const juego = (window as unknown as { juego: Juego }).juego;
+            const hud = juego.scene.getScene('Hud') as { children: { list: { type: string; text?: string }[] } };
+            return hud.children.list.filter((o) => o.type === 'Text').map((o) => o.text ?? '');
+        });
+    await expect.poll(textosDelHud).toContainEqual(expect.stringContaining('Ya llevas 3 pociones'));
+
+    //  Beber una (Q) deja sitio y la poción del suelo se recoge sola
+    await pulsar(page, 'KeyQ');
+    await expect
+        .poll(() =>
+            page.evaluate(() => {
+                const juego = (window as unknown as { juego: Juego }).juego;
+                const game = juego.scene.getScene('Game') as ConPociones;
+                return game.recogibles.getChildren().length;
+            })
+        )
+        .toBe(0);
+});
+
 test('los créditos se abren desde el título', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());

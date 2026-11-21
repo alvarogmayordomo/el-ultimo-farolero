@@ -8,3 +8,6 @@
 *.mp3 binary
 *.wav binary
 *.ttf binary
+
+# Los .bat de Windows necesitan CRLF para que cmd los lea bien
+*.bat text eol=crlf

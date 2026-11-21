@@ -23,6 +23,8 @@ npm run creditos   # regenera CREDITS.md desde assets.manifest.json
 npx vitest run src/core/combo.test.ts   # un solo archivo de tests
 ```
 
+Para jugar sin terminal: doble clic en `jugar.bat` (build + `vite preview` en http://localhost:4173 y abre el navegador). Lleva finales de línea CRLF (`.gitattributes`).
+
 Los tests (`*.test.ts`) viven junto al código de `src/`; las pruebas de Playwright, en `e2e/`. Un test de `src/data` falla si un archivo de `public/assets` no está en `assets.manifest.json` con licencia CC0 o CC-BY. Biome formatea y revisa el estilo (`biome.json`: 4 espacios, comillas simples, llaves en la misma línea). Un hook de Node (`.claude/hooks/formato.mjs`, PostToolUse) pasa Biome por cada archivo que Claude edita; si queda un error que no sabe arreglar, sale con código 2 y hay que corregirlo. Para comprobar un cambio: `npm run lint`, `npm test`, `npm run build`, `npm run e2e` y abrir el juego.
 
 Publicación: `.github/workflows/pages.yml` pasa lint, tests y build y publica `dist/` en GitHub Pages en cada push a `main` (https://alvarogmayordomo.github.io/el-ultimo-farolero/). `.github/workflows/ci.yml` hace lo mismo más Playwright en cada pull request.
