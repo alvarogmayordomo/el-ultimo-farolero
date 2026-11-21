@@ -60,7 +60,10 @@ if (resultado.error) {
 }
 
 if (resultado.status !== 0) {
-    salir(2, `Biome ha encontrado problemas en ${ruta} que no ha podido arreglar solo:\n${resultado.stdout}${resultado.stderr}`);
+    salir(
+        2,
+        `Biome ha encontrado problemas en ${ruta} que no ha podido arreglar solo:\n${resultado.stdout}${resultado.stderr}`
+    );
 }
 
 salir(0);
