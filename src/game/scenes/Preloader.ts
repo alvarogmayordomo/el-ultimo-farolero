@@ -41,12 +41,38 @@ export class Preloader extends Scene
         this.load.tilemapTiledJSON('mapa-prueba', 'mapas/prueba.tmj');
         this.load.image('tiles-suelo', 'tilesets/suelo-interior.png');
         this.load.image('tiles-muros', 'tilesets/muros-simples.png');
+
+        //  Farolero (NinjaGreen): fotogramas de 32×32; columnas = dirección, filas = fotograma
+        this.load.spritesheet('farolero-andar', 'personajes/farolero-andar.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('farolero-quieto', 'personajes/farolero-quieto.png', { frameWidth: 32, frameHeight: 32 });
     }
 
     create ()
     {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
+
+        //  Animaciones del farolero: andar-<dir> y quieto-<dir>. En cada hoja la columna
+        //  es la dirección (0 abajo, 1 arriba, 2 izquierda, 3 derecha) y hay 4 filas.
+        const direcciones = ['abajo', 'arriba', 'izquierda', 'derecha'];
+
+        direcciones.forEach((dir, columna) => {
+            const fotogramas = [columna, columna + 4, columna + 8, columna + 12];
+
+            this.anims.create({
+                key: `andar-${dir}`,
+                frames: this.anims.generateFrameNumbers('farolero-andar', { frames: fotogramas }),
+                frameRate: 8,
+                repeat: -1
+            });
+
+            this.anims.create({
+                key: `quieto-${dir}`,
+                frames: this.anims.generateFrameNumbers('farolero-quieto', { frames: fotogramas }),
+                frameRate: 4,
+                repeat: -1
+            });
+        });
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
         this.scene.start('MainMenu');

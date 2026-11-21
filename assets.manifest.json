@@ -18,6 +18,16 @@
       "archivo": "public/assets/tilesets/muros-simples.png",
       "fuente": "ninja-adventure",
       "original": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png"
+    },
+    {
+      "archivo": "public/assets/personajes/farolero-andar.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/CharacterAnimated/NinjaGreen/Separate/Walk.png"
+    },
+    {
+      "archivo": "public/assets/personajes/farolero-quieto.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/CharacterAnimated/NinjaGreen/Separate/Idle.png"
     }
   ]
 }
