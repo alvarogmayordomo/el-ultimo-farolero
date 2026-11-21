@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "defaultMode": "default",
+    "defaultMode": "acceptEdits",
     "allow": [
       "Bash(npm run *)",
       "Bash(git status)",
@@ -40,6 +40,20 @@
       "Bash(npm publish *)",
       "Bash(curl *)",
       "Bash(wget *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/formato.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
