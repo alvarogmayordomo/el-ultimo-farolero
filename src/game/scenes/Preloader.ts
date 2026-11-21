@@ -54,6 +54,13 @@ export class Preloader extends Scene
         //  Efectos: tajo del golpe (4 fotogramas, apunta a la derecha) y humo (6 fotogramas)
         this.load.spritesheet('fx-tajo', 'fx/tajo.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('fx-humo', 'fx/humo.png', { frameWidth: 32, frameHeight: 32 });
+
+        //  Lanza de Luz (bola de energía, 4 fotogramas) y llama de los braseros (12 fotogramas de 8×12)
+        this.load.spritesheet('fx-lanza', 'fx/lanza.png', { frameWidth: 16, frameHeight: 16 });
+        this.load.spritesheet('fx-fuego', 'fx/fuego.png', { frameWidth: 8, frameHeight: 12 });
+
+        //  Piezas de mazmorra (TilesetDungeon) en fotogramas de 16×16: de aquí sale el brasero
+        this.load.spritesheet('mazmorra', 'objetos/mazmorra.png', { frameWidth: 16, frameHeight: 16 });
     }
 
     create ()
@@ -113,6 +120,23 @@ export class Preloader extends Scene
             key: 'fx-humo',
             frames: this.anims.generateFrameNumbers('fx-humo', { start: 0, end: 5 }),
             frameRate: 14
+        });
+
+        this.anims.create({
+            key: 'fx-lanza',
+            frames: this.anims.generateFrameNumbers('fx-lanza', { start: 0, end: 3 }),
+            frameRate: 12,
+            repeat: -1
+        });
+
+        //  La hoja del fuego es una llama que se apaga: se usan los fotogramas de llama
+        //  llena, de ida y vuelta, para que parezca que oscila
+        this.anims.create({
+            key: 'fx-fuego',
+            frames: this.anims.generateFrameNumbers('fx-fuego', { start: 3, end: 7 }),
+            frameRate: 8,
+            yoyo: true,
+            repeat: -1
         });
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.

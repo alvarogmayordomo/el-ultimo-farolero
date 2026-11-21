@@ -1,7 +1,9 @@
 import { Geom, Physics, Scene, TintModes } from 'phaser';
 import { Combo, Golpe } from '../../core/combo';
 import { Esquiva } from '../../core/esquiva';
+import { LanzaDeLuz } from '../../core/lanza';
 import { Luchador } from '../../core/luchador';
+import { Luz } from '../../core/luz';
 import { Direccion, VECTORES, direccionDe } from './direcciones';
 
 //  Velocidades en píxeles por segundo
@@ -12,6 +14,9 @@ const VELOCIDAD_RETROCESO = 120;
 //  Tras recibir un golpe: retrocede un momento y es invulnerable un rato (ms)
 const DURACION_RETROCESO = 150;
 const INVULNERABLE_TRAS_GOLPE = 600;
+
+//  Pose de lanzar: el farolero se queda quieto un momento al soltar la Lanza (ms)
+const DURACION_LANZAR = 150;
 
 //  Zona del golpe: un cuadrado delante del farolero
 const TAMANO_GOLPE = 20;
@@ -25,6 +30,8 @@ export interface Entrada
     //  true solo en el fotograma en que se pulsa la tecla
     atacar: boolean;
     esquivar: boolean;
+    lanzar: boolean;
+    encender: boolean;
 }
 
 //  El jugador. Dibuja y mueve el sprite; las reglas (combo, esquiva, PV)
@@ -36,10 +43,13 @@ export class Farolero extends Physics.Arcade.Sprite
     readonly luchador = new Luchador({ pv: 100, atq: 10, def: 5 }, INVULNERABLE_TRAS_GOLPE);
     readonly combo = new Combo();
     readonly esquiva = new Esquiva();
+    readonly luz = new Luz();
+    readonly lanza = new LanzaDeLuz();
     mirando: Direccion = 'abajo';
 
     private retroceso = { x: 0, y: 0 };
     private retrocesoHasta = -Infinity;
+    private lanzandoHasta = -Infinity;
 
     constructor (scene: Scene, x: number, y: number)
     {
@@ -66,6 +76,12 @@ export class Farolero extends Physics.Arcade.Sprite
         if (ahora < this.retrocesoHasta)
         {
             this.setVelocity(this.retroceso.x, this.retroceso.y);
+            return null;
+        }
+
+        if (ahora < this.lanzandoHasta)
+        {
+            this.setVelocity(0, 0);
             return null;
         }
 
@@ -124,6 +140,24 @@ export class Farolero extends Physics.Arcade.Sprite
         this.play(`andar-${this.mirando}`, true);
 
         return null;
+    }
+
+    //  Intenta lanzar la Lanza de Luz hacia donde mira. No se puede a mitad de
+    //  esquiva, golpe o retroceso. Devuelve true si se lanza (y ya ha gastado la Luz).
+    lanzar (ahora: number): boolean
+    {
+        const ocupado = ahora < this.retrocesoHasta || ahora < this.lanzandoHasta || this.esquiva.activa(ahora) || this.combo.golpeActivo(ahora) !== null;
+
+        if (ocupado || !this.lanza.lanzar(ahora, this.luz))
+        {
+            return false;
+        }
+
+        this.lanzandoHasta = ahora + DURACION_LANZAR;
+        this.setVelocity(0, 0);
+        this.play(`atacar-${this.mirando}`);
+
+        return true;
     }
 
     //  Rectángulo del golpe, delante del farolero según hacia dónde mira
