@@ -25,6 +25,7 @@ export class Game extends Scene
         this.crearJugador();
         this.crearControles();
         this.crearColisiones();
+        this.crearCamara();
     }
 
     update ()
@@ -79,6 +80,22 @@ export class Game extends Scene
     private crearColisiones ()
     {
         this.physics.add.collider(this.jugador, this.muros);
+    }
+
+    private crearCamara ()
+    {
+        const ancho = this.mapa.widthInPixels;
+        const alto = this.mapa.heightInPixels;
+
+        //  Zoom ×2: el lienzo de 640×360 muestra 320×180 píxeles del mundo.
+        //  Los límites impiden que la cámara enseñe lo que hay fuera del mapa.
+        const camara = this.cameras.main;
+        camara.setZoom(2);
+        camara.setBounds(0, 0, ancho, alto);
+        camara.startFollow(this.jugador, true);
+
+        this.physics.world.setBounds(0, 0, ancho, alto);
+        this.jugador.setCollideWorldBounds(true);
     }
 
     private crearControles ()
