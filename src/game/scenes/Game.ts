@@ -5,6 +5,15 @@ type Direccion = 'abajo' | 'arriba' | 'izquierda' | 'derecha';
 //  Velocidad del farolero en píxeles por segundo
 const VELOCIDAD = 80;
 
+//  Radio de luz alrededor del farolero, fijo en H1. En H3 dependerá de la Luz
+//  (de 48 px con Luz 0 a 160 px con Luz 100).
+const RADIO_LUZ = 100;
+
+//  Margen de la capa de oscuridad alrededor de la vista: la cámara se coloca
+//  después de update(), así que la capa va un fotograma por detrás y el margen
+//  evita que asome un borde sin oscurecer.
+const MARGEN_OSCURIDAD = 32;
+
 export class Game extends Scene
 {
     mapa: Phaser.Tilemaps.Tilemap;
@@ -13,6 +22,7 @@ export class Game extends Scene
     flechas: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd: Record<'arriba' | 'abajo' | 'izquierda' | 'derecha', Phaser.Input.Keyboard.Key>;
     mirando: Direccion = 'abajo';
+    oscuridad: Phaser.GameObjects.RenderTexture;
 
     constructor ()
     {
@@ -26,11 +36,13 @@ export class Game extends Scene
         this.crearControles();
         this.crearColisiones();
         this.crearCamara();
+        this.crearOscuridad();
     }
 
     update ()
     {
         this.moverJugador();
+        this.actualizarOscuridad();
     }
 
     private crearMapa ()
@@ -96,6 +108,55 @@ export class Game extends Scene
 
         this.physics.world.setBounds(0, 0, ancho, alto);
         this.jugador.setCollideWorldBounds(true);
+    }
+
+    private crearOscuridad ()
+    {
+        //  Textura «luz»: un círculo blanco que se desvanece hacia el borde. Al borrar
+        //  con ella, la oscuridad desaparece del todo en el centro y poco a poco hacia fuera.
+        if (!this.textures.exists('luz'))
+        {
+            const lienzo = this.textures.createCanvas('luz', RADIO_LUZ * 2, RADIO_LUZ * 2);
+
+            if (!lienzo)
+            {
+                throw new Error('No se ha podido crear la textura de luz');
+            }
+
+            const ctx = lienzo.getContext();
+            const degradado = ctx.createRadialGradient(RADIO_LUZ, RADIO_LUZ, 0, RADIO_LUZ, RADIO_LUZ, RADIO_LUZ);
+            degradado.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            degradado.addColorStop(0.5, 'rgba(255, 255, 255, 0.85)');
+            degradado.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = degradado;
+            ctx.fillRect(0, 0, RADIO_LUZ * 2, RADIO_LUZ * 2);
+            lienzo.refresh();
+        }
+
+        //  Capa negra del tamaño de la vista (320×180) más un margen, por encima de todo
+        const camara = this.cameras.main;
+        this.oscuridad = this.add.renderTexture(
+            0, 0,
+            camara.width / camara.zoom + MARGEN_OSCURIDAD * 2,
+            camara.height / camara.zoom + MARGEN_OSCURIDAD * 2
+        );
+        this.oscuridad.setOrigin(0, 0);
+        this.oscuridad.setDepth(1000);
+    }
+
+    private actualizarOscuridad ()
+    {
+        //  Cada fotograma: se coloca la capa sobre la vista, se pinta de negro
+        //  y se borra un círculo de luz centrado en el farolero
+        const vista = this.cameras.main.worldView;
+        const x = Math.floor(vista.x) - MARGEN_OSCURIDAD;
+        const y = Math.floor(vista.y) - MARGEN_OSCURIDAD;
+
+        this.oscuridad.setPosition(x, y);
+        this.oscuridad.fill(0x000000, 1);
+        //  Al borrar con una textura, Phaser 4 la coloca por su centro (como stamp)
+        this.oscuridad.erase('luz', this.jugador.x - x, this.jugador.y - y);
+        this.oscuridad.render();
     }
 
     private crearControles ()
