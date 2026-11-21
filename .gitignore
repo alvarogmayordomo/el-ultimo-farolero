@@ -38,3 +38,7 @@ fuentes/
 
 # Copia en PDF del plan (el original vive en docs/plan.md)
 *.pdf
+
+# Informes de Playwright (npm run e2e)
+playwright-report/
+test-results/

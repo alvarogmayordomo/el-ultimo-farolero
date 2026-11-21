@@ -68,6 +68,56 @@
       "archivo": "public/assets/fx/lanza.png",
       "fuente": "ninja-adventure",
       "original": "FX/Projectile/EnergyBall.png"
+    },
+    {
+      "archivo": "public/assets/enemigos/arquero.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/Character/Skeleton/SeparateAnim/Walk.png"
+    },
+    {
+      "archivo": "public/assets/enemigos/bruto.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/Monster/Cyclope/SpriteSheet.png"
+    },
+    {
+      "archivo": "public/assets/fx/flecha.png",
+      "fuente": "ninja-adventure",
+      "original": "FX/Projectile/Arrow.png"
+    },
+    {
+      "archivo": "public/assets/objetos/katana.png",
+      "fuente": "ninja-adventure",
+      "original": "Items/Weapons/Katana/Sprite.png"
+    },
+    {
+      "archivo": "public/assets/objetos/gran-espada.png",
+      "fuente": "ninja-adventure",
+      "original": "Items/Weapons/BigSword/Sprite.png"
+    },
+    {
+      "archivo": "public/assets/objetos/amuleto.png",
+      "fuente": "ninja-adventure",
+      "original": "Items/Resource/GemYellow.png"
+    },
+    {
+      "archivo": "public/assets/objetos/pocion.png",
+      "fuente": "ninja-adventure",
+      "original": "Items/Potion/LifePot.png"
+    },
+    {
+      "archivo": "public/assets/jefe/guardiana.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/Boss/GiantSpirit/Idle.png"
+    },
+    {
+      "archivo": "public/assets/jefe/guardiana-herida.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/Boss/GiantSpirit/Hit.png"
+    },
+    {
+      "archivo": "public/assets/fuentes/normal.ttf",
+      "fuente": "ninja-adventure",
+      "original": "Ui/Font/NormalFont.ttf"
     }
   ]
 }

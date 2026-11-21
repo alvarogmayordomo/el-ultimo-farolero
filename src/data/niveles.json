@@ -1,0 +1,5 @@
+[
+  { "id": "nivel-1", "nombre": "La calle de los faroles", "mapa": "nivel-1" },
+  { "id": "nivel-2", "nombre": "Las criptas", "mapa": "nivel-2" },
+  { "id": "pozo", "nombre": "El Pozo", "mapa": "pozo", "jefe": true }
+]

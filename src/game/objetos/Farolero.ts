@@ -1,9 +1,14 @@
 import { Geom, Physics, type Scene, TintModes } from 'phaser';
 import { Combo, type Golpe } from '../../core/combo';
+import { Equipo } from '../../core/equipo';
 import { Esquiva } from '../../core/esquiva';
+import { Experiencia, estadisticasDeNivel } from '../../core/experiencia';
 import { LanzaDeLuz } from '../../core/lanza';
 import { Luchador } from '../../core/luchador';
 import { Luz } from '../../core/luz';
+import type { Partida } from '../../core/partida';
+import { Pociones } from '../../core/pociones';
+import { objetoPorId } from '../../data/datos';
 import { type Direccion, direccionDe, VECTORES } from './direcciones';
 
 //  Velocidades en píxeles por segundo
@@ -31,6 +36,7 @@ export interface Entrada {
     esquivar: boolean;
     lanzar: boolean;
     encender: boolean;
+    beber: boolean;
 }
 
 //  El jugador. Dibuja y mueve el sprite; las reglas (combo, esquiva, PV)
@@ -38,21 +44,36 @@ export interface Entrada {
 export class Farolero extends Physics.Arcade.Sprite {
     declare body: Physics.Arcade.Body;
 
-    readonly luchador = new Luchador({ pv: 100, atq: 10, def: 5 }, INVULNERABLE_TRAS_GOLPE);
+    readonly luchador = new Luchador(estadisticasDeNivel(1), INVULNERABLE_TRAS_GOLPE);
     readonly combo = new Combo();
     readonly esquiva = new Esquiva();
     readonly luz = new Luz();
     readonly lanza = new LanzaDeLuz();
+    readonly experiencia: Experiencia;
+    readonly equipo = new Equipo();
+    readonly pociones: Pociones;
     mirando: Direccion = 'abajo';
 
     private retroceso = { x: 0, y: 0 };
     private retrocesoHasta = -Infinity;
     private lanzandoHasta = -Infinity;
 
-    constructor(scene: Scene, x: number, y: number) {
+    //  Se crea a partir de la partida: experiencia, equipo y pociones guardados
+    constructor(scene: Scene, x: number, y: number, partida: Partida) {
         super(scene, x, y, 'farolero-quieto', 0);
         scene.add.existing(this);
         scene.physics.add.existing(this);
+
+        this.experiencia = new Experiencia(partida.experiencia);
+        this.pociones = new Pociones(partida.pociones);
+        for (const id of partida.equipo) {
+            const objeto = objetoPorId(id);
+            if (objeto) {
+                this.equipo.recoger(objeto);
+            }
+        }
+        this.recalcularEstadisticas();
+        this.luchador.curar(Number.POSITIVE_INFINITY);
 
         //  Cuerpo físico pequeño en los pies (el dibujo ocupa ~16 px dentro del marco de 32):
         //  así la cabeza puede solapar un muro que está detrás, como en los Zelda cenitales
@@ -149,6 +170,35 @@ export class Farolero extends Physics.Arcade.Sprite {
         return true;
     }
 
+    //  Estadísticas = las del nivel + lo que suma el equipo
+    recalcularEstadisticas() {
+        const base = estadisticasDeNivel(this.experiencia.nivel);
+        this.luchador.aplicarEstadisticas({
+            pv: base.pv,
+            atq: base.atq + this.equipo.atq,
+            def: base.def + this.equipo.def
+        });
+    }
+
+    //  Suma experiencia. Devuelve los niveles subidos; al subir, se cura del todo.
+    ganarExperiencia(cantidad: number): number {
+        const subidos = this.experiencia.ganar(cantidad);
+
+        if (subidos > 0) {
+            this.recalcularEstadisticas();
+            this.luchador.curar(Number.POSITIVE_INFINITY);
+        }
+
+        return subidos;
+    }
+
+    //  Copia en la partida lo que lleva el farolero (antes de guardar o cambiar de nivel)
+    volcarEn(partida: Partida) {
+        partida.experiencia = this.experiencia.total;
+        partida.equipo = this.equipo.ids;
+        partida.pociones = this.pociones.cantidad;
+    }
+
     //  Rectángulo del golpe, delante del farolero según hacia dónde mira
     zonaDeGolpe(): Geom.Rectangle {
         const centro = this.body.center;
@@ -165,12 +215,12 @@ export class Farolero extends Physics.Arcade.Sprite {
     }
 
     //  Recibe un golpe de `atacante` que viene desde el punto (x, y)
-    recibirGolpe(atacante: Luchador, ahora: number, desdeX: number, desdeY: number): number {
+    recibirGolpe(atacante: Luchador, ahora: number, desdeX: number, desdeY: number, multiplicador = 1): number {
         if (!this.esVulnerable(ahora)) {
             return 0;
         }
 
-        const dano = this.luchador.recibirGolpe(atacante, 1, ahora);
+        const dano = this.luchador.recibirGolpe(atacante, multiplicador, ahora);
 
         //  Retrocede alejándose del atacante y pierde el combo
         const vx = this.body.center.x - desdeX;

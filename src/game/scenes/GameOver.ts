@@ -1,36 +1,32 @@
 import { Scene } from 'phaser';
+import { COLORES, estiloTexto } from '../estilo';
+import { crearMenu } from '../Menu';
 
+//  «Has caído». La partida ya se ha devuelto al último brasero (ver Game.morir).
 export class GameOver extends Scene {
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    gameover_text: Phaser.GameObjects.Text;
-
     constructor() {
         super('GameOver');
     }
 
     create() {
         const { width, height } = this.scale;
+        this.cameras.main.setBackgroundColor(COLORES.fondo);
+        this.cameras.main.fadeIn(600, 0, 0, 0);
 
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0xff0000);
+        this.add.text(width / 2, height / 2 - 50, 'Has caído', estiloTexto(30, COLORES.peligro)).setOrigin(0.5);
+        this.add
+            .text(width / 2, height / 2 - 18, 'La llama vuelve al último brasero que encendiste.', estiloTexto(10))
+            .setOrigin(0.5);
 
-        this.background = this.add.image(width / 2, height / 2, 'background');
-        this.background.setScale(Math.max(width / this.background.width, height / this.background.height));
-        this.background.setAlpha(0.5);
-
-        this.gameover_text = this.add.text(width / 2, height / 2, 'Game Over', {
-            fontFamily: 'Arial Black',
-            fontSize: 40,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 6,
-            align: 'center'
-        });
-        this.gameover_text.setOrigin(0.5);
-
-        this.input.once('pointerdown', () => {
-            this.scene.start('MainMenu');
-        });
+        crearMenu(this, width / 2, height / 2 + 30, [
+            { texto: 'Levantarse', accion: () => this.scene.start('Game') },
+            {
+                texto: 'Volver al título',
+                accion: () => {
+                    this.registry.remove('partida');
+                    this.scene.start('MainMenu');
+                }
+            }
+        ]);
     }
 }

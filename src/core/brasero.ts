@@ -28,6 +28,19 @@ export class Brasero {
         return true;
     }
 
+    //  Lo apaga (la Guardiana en su fase 2). Devuelve true si estaba encendido.
+    apagar(): boolean {
+        const estaba = this._encendido;
+        this._encendido = false;
+
+        return estaba;
+    }
+
+    //  Lo deja encendido sin tocar la Luz (al cargar una partida guardada)
+    restaurarEncendido() {
+        this._encendido = true;
+    }
+
     //  ¿Recarga la Luz de alguien que está a `distancia` px?
     recargaA(distancia: number): boolean {
         return this._encendido && distancia <= ALCANCE_RECARGA;

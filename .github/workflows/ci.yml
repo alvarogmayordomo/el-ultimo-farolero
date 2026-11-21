@@ -1,0 +1,45 @@
+# Comprobaciones automáticas de cada pull request (H6).
+#
+# Antes de fusionar nada en main, GitHub ejecuta lo mismo que harías a mano:
+# Biome, los tests de la lógica, la build y una partida de prueba con Playwright
+# en un Chromium sin ventana. Si algo falla, la PR sale en rojo.
+
+name: Comprobaciones
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+      # Chromium de Playwright con las librerías del sistema que necesita
+      - run: npm run e2e:instalar
+      - run: npm run e2e
+
+      # Si la partida de prueba falla, se guardan capturas y trazas para verlas
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-playwright
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
