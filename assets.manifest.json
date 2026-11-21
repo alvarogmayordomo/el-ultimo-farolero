@@ -28,6 +28,31 @@
       "archivo": "public/assets/personajes/farolero-quieto.png",
       "fuente": "ninja-adventure",
       "original": "Actor/CharacterAnimated/NinjaGreen/Separate/Idle.png"
+    },
+    {
+      "archivo": "public/assets/personajes/farolero-ataque.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/CharacterAnimated/NinjaGreen/Separate/Attack.png"
+    },
+    {
+      "archivo": "public/assets/personajes/farolero-esquiva.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/CharacterAnimated/NinjaGreen/Separate/Roll.png"
+    },
+    {
+      "archivo": "public/assets/enemigos/sombra.png",
+      "fuente": "ninja-adventure",
+      "original": "Actor/Monster/Spirit/SpriteSheet.png"
+    },
+    {
+      "archivo": "public/assets/fx/tajo.png",
+      "fuente": "ninja-adventure",
+      "original": "FX/Attack/SlashCurved/SpriteSheet.png"
+    },
+    {
+      "archivo": "public/assets/fx/humo.png",
+      "fuente": "ninja-adventure",
+      "original": "FX/Smoke/Smoke/SpriteSheet.png"
     }
   ]
 }

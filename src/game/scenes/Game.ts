@@ -1,11 +1,10 @@
-import { Math as PhaserMath, Scene, Tilemaps } from 'phaser';
+import { Geom, Input, Scene, Tilemaps } from 'phaser';
+import { Golpe } from '../../core/combo';
+import { Farolero } from '../objetos/Farolero';
+import { Sombra } from '../objetos/Sombra';
+import { VECTORES } from '../objetos/direcciones';
 
-type Direccion = 'abajo' | 'arriba' | 'izquierda' | 'derecha';
-
-//  Velocidad del farolero en píxeles por segundo
-const VELOCIDAD = 80;
-
-//  Radio de luz alrededor del farolero, fijo en H1. En H3 dependerá de la Luz
+//  Radio de luz alrededor del farolero, fijo de momento. En H3 dependerá de la Luz
 //  (de 48 px con Luz 0 a 160 px con Luz 100).
 const RADIO_LUZ = 100;
 
@@ -14,15 +13,32 @@ const RADIO_LUZ = 100;
 //  evita que asome un borde sin oscurecer.
 const MARGEN_OSCURIDAD = 32;
 
+//  Ángulo del efecto de tajo (el sprite apunta a la derecha)
+const ANGULO_TAJO = { derecha: 0, abajo: 90, izquierda: 180, arriba: -90 };
+
+interface Teclas
+{
+    flechas: Phaser.Types.Input.Keyboard.CursorKeys;
+    arriba: Input.Keyboard.Key;
+    abajo: Input.Keyboard.Key;
+    izquierda: Input.Keyboard.Key;
+    derecha: Input.Keyboard.Key;
+    atacar: Input.Keyboard.Key[];
+    esquivar: Input.Keyboard.Key[];
+}
+
 export class Game extends Scene
 {
     mapa: Phaser.Tilemaps.Tilemap;
     muros: Phaser.Tilemaps.TilemapLayer;
-    jugador: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-    flechas: Phaser.Types.Input.Keyboard.CursorKeys;
-    wasd: Record<'arriba' | 'abajo' | 'izquierda' | 'derecha', Phaser.Input.Keyboard.Key>;
-    mirando: Direccion = 'abajo';
+    jugador: Farolero;
+    sombras: Sombra[];
+    teclas: Teclas;
     oscuridad: Phaser.GameObjects.RenderTexture;
+
+    //  Golpe del combo en curso y Sombras que ya ha alcanzado (cada golpe daña una vez)
+    private golpeEnCurso: Golpe | null = null;
+    private alcanzadas = new Set<Sombra>();
 
     constructor ()
     {
@@ -31,18 +47,39 @@ export class Game extends Scene
 
     create ()
     {
+        this.golpeEnCurso = null;
+        this.alcanzadas.clear();
+
         this.crearMapa();
-        this.crearJugador();
+        this.crearPersonajes();
         this.crearControles();
         this.crearColisiones();
         this.crearCamara();
         this.crearOscuridad();
     }
 
-    update ()
+    update (ahora: number)
     {
-        this.moverJugador();
+        const golpe = this.jugador.actualizar(ahora, this.leerEntrada());
+
+        if (golpe)
+        {
+            this.empezarGolpe(golpe);
+        }
+
+        this.comprobarGolpeDelJugador(ahora);
+
+        const objetivo = this.jugador.body.center;
+        this.sombras = this.sombras.filter((sombra) => sombra.active);
+        this.sombras.forEach((sombra) => sombra.actualizar(ahora, objetivo.x, objetivo.y));
+
+        this.comprobarAtaquesDeSombras(ahora);
         this.actualizarOscuridad();
+
+        if (!this.jugador.luchador.vivo)
+        {
+            this.scene.start('GameOver');
+        }
     }
 
     private crearMapa ()
@@ -73,25 +110,22 @@ export class Game extends Scene
         this.muros.setCollisionByExclusion([-1]);
     }
 
-    private crearJugador ()
+    private crearPersonajes ()
     {
-        //  El punto «inicio» se coloca en Tiled, en la capa de objetos «objetos»
+        //  Los puntos «inicio» y «sombra» se colocan en Tiled, en la capa de objetos «objetos»
         const inicio = this.mapa.findObject('objetos', (objeto) => objeto.name === 'inicio');
-        const x = inicio?.x ?? 0;
-        const y = inicio?.y ?? 0;
+        this.jugador = new Farolero(this, inicio?.x ?? 0, inicio?.y ?? 0);
 
-        this.jugador = this.physics.add.sprite(x, y, 'farolero-quieto', 0);
-        this.jugador.play('quieto-abajo');
-
-        //  Cuerpo físico pequeño en los pies (el dibujo ocupa ~16 px dentro del marco de 32):
-        //  así la cabeza puede solapar un muro que está detrás, como en los Zelda cenitales
-        this.jugador.body.setSize(10, 8);
-        this.jugador.body.setOffset(11, 16);
+        this.sombras = this.mapa
+            .filterObjects('objetos', (objeto) => objeto.name === 'sombra')
+            ?.map((punto) => new Sombra(this, punto.x ?? 0, punto.y ?? 0)) ?? [];
     }
 
     private crearColisiones ()
     {
         this.physics.add.collider(this.jugador, this.muros);
+        //  En un grupo, las Sombras que mueren salen solas y el collider no las toca
+        this.physics.add.collider(this.add.group(this.sombras), this.muros);
     }
 
     private crearCamara ()
@@ -108,6 +142,117 @@ export class Game extends Scene
 
         this.physics.world.setBounds(0, 0, ancho, alto);
         this.jugador.setCollideWorldBounds(true);
+    }
+
+    private crearControles ()
+    {
+        const teclado = this.input.keyboard;
+
+        if (!teclado)
+        {
+            throw new Error('No hay teclado disponible');
+        }
+
+        //  Atacar: J o Espacio. Esquivar: K o Mayúsculas.
+        this.teclas = {
+            flechas: teclado.createCursorKeys(),
+            arriba: teclado.addKey('W'),
+            abajo: teclado.addKey('S'),
+            izquierda: teclado.addKey('A'),
+            derecha: teclado.addKey('D'),
+            atacar: [teclado.addKey('J'), teclado.addKey('SPACE')],
+            esquivar: [teclado.addKey('K'), teclado.addKey('SHIFT')]
+        };
+
+        //  F2 muestra u oculta las cajas de colisión (ayuda de desarrollo)
+        teclado.addKey('F2').on('down', () => this.alternarDebugFisicas());
+    }
+
+    //  Traduce el teclado a la entrada que entiende el farolero
+    private leerEntrada ()
+    {
+        const t = this.teclas;
+        const izquierda = t.flechas.left.isDown || t.izquierda.isDown;
+        const derecha = t.flechas.right.isDown || t.derecha.isDown;
+        const arriba = t.flechas.up.isDown || t.arriba.isDown;
+        const abajo = t.flechas.down.isDown || t.abajo.isDown;
+        const recienPulsada = (teclas: Input.Keyboard.Key[]) => teclas.some((tecla) => Input.Keyboard.JustDown(tecla));
+
+        return {
+            dx: Number(derecha) - Number(izquierda),
+            dy: Number(abajo) - Number(arriba),
+            atacar: recienPulsada(t.atacar),
+            esquivar: recienPulsada(t.esquivar)
+        };
+    }
+
+    private empezarGolpe (golpe: Golpe)
+    {
+        this.golpeEnCurso = golpe;
+        this.alcanzadas.clear();
+
+        //  Efecto de tajo delante del farolero, girado hacia donde mira
+        const mirando = this.jugador.mirando;
+        const v = VECTORES[mirando];
+        const centro = this.jugador.body.center;
+        const tajo = this.add.sprite(centro.x + v.x * 12, centro.y + v.y * 12 - 4, 'fx-tajo', 0);
+        tajo.setAngle(ANGULO_TAJO[mirando]);
+        tajo.setFlipY(golpe.numero === 2);
+        tajo.play('fx-tajo');
+        tajo.once('animationcomplete', () => tajo.destroy());
+    }
+
+    //  Mientras dura el golpe, cada Sombra dentro de la zona recibe daño una sola vez
+    private comprobarGolpeDelJugador (ahora: number)
+    {
+        const golpe = this.golpeEnCurso;
+
+        if (!golpe || !this.jugador.combo.golpeActivo(ahora))
+        {
+            this.golpeEnCurso = null;
+            return;
+        }
+
+        const zona = this.jugador.zonaDeGolpe();
+        const centro = this.jugador.body.center;
+
+        for (const sombra of this.sombras)
+        {
+            if (!sombra.active || this.alcanzadas.has(sombra))
+            {
+                continue;
+            }
+
+            if (Geom.Intersects.RectangleToRectangle(zona, sombra.getBounds()))
+            {
+                this.alcanzadas.add(sombra);
+                sombra.recibirGolpe(this.jugador.luchador, golpe.multiplicador, ahora, centro.x, centro.y);
+            }
+        }
+    }
+
+    //  Una Sombra que embiste y toca al farolero le hace daño (salvo si está esquivando)
+    private comprobarAtaquesDeSombras (ahora: number)
+    {
+        const cuerpoJugador = this.cuerpoComoRectangulo(this.jugador.body);
+
+        for (const sombra of this.sombras)
+        {
+            if (!sombra.ia.haceDano || !this.jugador.esVulnerable(ahora))
+            {
+                continue;
+            }
+
+            if (Geom.Intersects.RectangleToRectangle(cuerpoJugador, this.cuerpoComoRectangulo(sombra.body)))
+            {
+                this.jugador.recibirGolpe(sombra.luchador, ahora, sombra.body.center.x, sombra.body.center.y);
+            }
+        }
+    }
+
+    private cuerpoComoRectangulo (cuerpo: Phaser.Physics.Arcade.Body): Geom.Rectangle
+    {
+        return new Geom.Rectangle(cuerpo.x, cuerpo.y, cuerpo.width, cuerpo.height);
     }
 
     private crearOscuridad ()
@@ -159,27 +304,6 @@ export class Game extends Scene
         this.oscuridad.render();
     }
 
-    private crearControles ()
-    {
-        const teclado = this.input.keyboard;
-
-        if (!teclado)
-        {
-            throw new Error('No hay teclado disponible');
-        }
-
-        this.flechas = teclado.createCursorKeys();
-        this.wasd = {
-            arriba: teclado.addKey('W'),
-            abajo: teclado.addKey('S'),
-            izquierda: teclado.addKey('A'),
-            derecha: teclado.addKey('D')
-        };
-
-        //  F2 muestra u oculta las cajas de colisión (ayuda de desarrollo)
-        teclado.addKey('F2').on('down', () => this.alternarDebugFisicas());
-    }
-
     private alternarDebugFisicas ()
     {
         const mundo = this.physics.world;
@@ -195,38 +319,5 @@ export class Game extends Scene
         mundo.drawDebug = mostrar;
         mundo.debugGraphic.clear();
         mundo.debugGraphic.setVisible(mundo.drawDebug);
-    }
-
-    private moverJugador ()
-    {
-        const izquierda = this.flechas.left.isDown || this.wasd.izquierda.isDown;
-        const derecha = this.flechas.right.isDown || this.wasd.derecha.isDown;
-        const arriba = this.flechas.up.isDown || this.wasd.arriba.isDown;
-        const abajo = this.flechas.down.isDown || this.wasd.abajo.isDown;
-
-        const dx = Number(derecha) - Number(izquierda);
-        const dy = Number(abajo) - Number(arriba);
-
-        //  En diagonal se normaliza el vector para no ir más rápido que en recto
-        const velocidad = new PhaserMath.Vector2(dx, dy).normalize().scale(VELOCIDAD);
-        this.jugador.setVelocity(velocidad.x, velocidad.y);
-
-        if (dx === 0 && dy === 0)
-        {
-            this.jugador.play(`quieto-${this.mirando}`, true);
-            return;
-        }
-
-        //  En diagonal manda el eje horizontal, como en los Zelda cenitales
-        if (dx !== 0)
-        {
-            this.mirando = dx < 0 ? 'izquierda' : 'derecha';
-        }
-        else
-        {
-            this.mirando = dy < 0 ? 'arriba' : 'abajo';
-        }
-
-        this.jugador.play(`andar-${this.mirando}`, true);
     }
 }
