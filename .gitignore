@@ -33,5 +33,8 @@ dist-ssr
 # Zips de packs de arte descargados (se sube solo lo extraído y con licencia registrada)
 *.zip
 
+# Packs de arte descomprimidos y completos: a public/assets/ se copia solo lo que se usa
+fuentes/
+
 # Copia en PDF del plan (el original vive en docs/plan.md)
 *.pdf
