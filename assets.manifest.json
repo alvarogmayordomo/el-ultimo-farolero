@@ -53,6 +53,21 @@
       "archivo": "public/assets/fx/humo.png",
       "fuente": "ninja-adventure",
       "original": "FX/Smoke/Smoke/SpriteSheet.png"
+    },
+    {
+      "archivo": "public/assets/objetos/mazmorra.png",
+      "fuente": "ninja-adventure",
+      "original": "Backgrounds/Tilesets/TilesetDungeon.png"
+    },
+    {
+      "archivo": "public/assets/fx/fuego.png",
+      "fuente": "ninja-adventure",
+      "original": "FX/Particle/Fire.png"
+    },
+    {
+      "archivo": "public/assets/fx/lanza.png",
+      "fuente": "ninja-adventure",
+      "original": "FX/Projectile/EnergyBall.png"
     }
   ]
 }

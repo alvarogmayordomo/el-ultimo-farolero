@@ -1,8 +1,9 @@
-import { Boot } from './scenes/Boot';
-import { GameOver } from './scenes/GameOver';
-import { Game as MainGame } from './scenes/Game';
-import { MainMenu } from './scenes/MainMenu';
 import { AUTO, Game, Scale } from 'phaser';
+import { Boot } from './scenes/Boot';
+import { Game as MainGame } from './scenes/Game';
+import { GameOver } from './scenes/GameOver';
+import { Hud } from './scenes/Hud';
+import { MainMenu } from './scenes/MainMenu';
 import { Preloader } from './scenes/Preloader';
 
 //  Lienzo de 640×360 (16:9). La cámara del juego usa zoom ×2 (vista de 320×180)
@@ -27,19 +28,11 @@ const config: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [
-        Boot,
-        Preloader,
-        MainMenu,
-        MainGame,
-        GameOver
-    ]
+    scene: [Boot, Preloader, MainMenu, MainGame, Hud, GameOver]
 };
 
 const StartGame = (parent: string) => {
-
     return new Game({ ...config, parent });
-
-}
+};
 
 export default StartGame;

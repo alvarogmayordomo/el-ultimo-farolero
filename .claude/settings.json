@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "defaultMode": "default",
+    "defaultMode": "acceptEdits",
     "allow": [
       "Bash(npm run *)",
       "Bash(git status)",
@@ -9,7 +9,12 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git switch *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(node *)",
+      "Bash(npx biome *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npm view *)"
     ],
     "ask": [
       "Bash(git push *)",
@@ -19,14 +24,10 @@
       "Bash(npm install *)",
       "Bash(npm i *)",
       "Bash(npm uninstall *)",
-      "Bash(npx *)",
       "Bash(gh *)",
       "Bash(rm *)",
-      "Bash(node *)",
       "Edit(./.claude/**)",
       "Edit(./.github/**)",
-      "Edit(./package.json)",
-      "Edit(./CLAUDE.md)",
       "WebFetch"
     ],
     "deny": [
@@ -40,6 +41,20 @@
       "Bash(npm publish *)",
       "Bash(curl *)",
       "Bash(wget *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/formato.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

@@ -1,14 +1,11 @@
 import { Scene } from 'phaser';
 
-export class Preloader extends Scene
-{
-    constructor ()
-    {
+export class Preloader extends Scene {
+    constructor() {
         super('Preloader');
     }
 
-    init ()
-    {
+    init() {
         const { width, height } = this.scale;
 
         //  We loaded this image in our Boot Scene, so we can display it here
@@ -23,15 +20,12 @@ export class Preloader extends Scene
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {
-
             //  Update the progress bar (our bar is 464px wide, so 100% = 464px)
-            bar.width = 4 + (460 * progress);
-
+            bar.width = 4 + 460 * progress;
         });
     }
 
-    preload ()
-    {
+    preload() {
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
@@ -46,7 +40,10 @@ export class Preloader extends Scene
         this.load.spritesheet('farolero-andar', 'personajes/farolero-andar.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('farolero-quieto', 'personajes/farolero-quieto.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('farolero-ataque', 'personajes/farolero-ataque.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('farolero-esquiva', 'personajes/farolero-esquiva.png', {
+            frameWidth: 32,
+            frameHeight: 32
+        });
 
         //  Sombra (Spirit): fotogramas de 16×16, mismo orden que el farolero
         this.load.spritesheet('sombra', 'enemigos/sombra.png', { frameWidth: 16, frameHeight: 16 });
@@ -54,10 +51,16 @@ export class Preloader extends Scene
         //  Efectos: tajo del golpe (4 fotogramas, apunta a la derecha) y humo (6 fotogramas)
         this.load.spritesheet('fx-tajo', 'fx/tajo.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('fx-humo', 'fx/humo.png', { frameWidth: 32, frameHeight: 32 });
+
+        //  Lanza de Luz (bola de energía, 4 fotogramas) y llama de los braseros (12 fotogramas de 8×12)
+        this.load.spritesheet('fx-lanza', 'fx/lanza.png', { frameWidth: 16, frameHeight: 16 });
+        this.load.spritesheet('fx-fuego', 'fx/fuego.png', { frameWidth: 8, frameHeight: 12 });
+
+        //  Piezas de mazmorra (TilesetDungeon) en fotogramas de 16×16: de aquí sale el brasero
+        this.load.spritesheet('mazmorra', 'objetos/mazmorra.png', { frameWidth: 16, frameHeight: 16 });
     }
 
-    create ()
-    {
+    create() {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
 
@@ -91,7 +94,9 @@ export class Preloader extends Scene
             //  Voltereta: 3 fotogramas por dirección, repartidos en los 0,3 s de la esquiva
             this.anims.create({
                 key: `esquivar-${dir}`,
-                frames: this.anims.generateFrameNumbers('farolero-esquiva', { frames: [columna, columna + 4, columna + 8] }),
+                frames: this.anims.generateFrameNumbers('farolero-esquiva', {
+                    frames: [columna, columna + 4, columna + 8]
+                }),
                 frameRate: 10
             });
 
@@ -113,6 +118,23 @@ export class Preloader extends Scene
             key: 'fx-humo',
             frames: this.anims.generateFrameNumbers('fx-humo', { start: 0, end: 5 }),
             frameRate: 14
+        });
+
+        this.anims.create({
+            key: 'fx-lanza',
+            frames: this.anims.generateFrameNumbers('fx-lanza', { start: 0, end: 3 }),
+            frameRate: 12,
+            repeat: -1
+        });
+
+        //  La hoja del fuego es una llama que se apaga: se usan los fotogramas de llama
+        //  llena, de ida y vuelta, para que parezca que oscila
+        this.anims.create({
+            key: 'fx-fuego',
+            frames: this.anims.generateFrameNumbers('fx-fuego', { start: 3, end: 7 }),
+            frameRate: 8,
+            yoyo: true,
+            repeat: -1
         });
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
